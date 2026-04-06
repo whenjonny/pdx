@@ -41,10 +41,12 @@ class EvidenceUploadResponse(BaseModel):
 
 
 class PredictionResponse(BaseModel):
-    probability: float
-    confidence: str  # "HIGH", "MEDIUM", "LOW"
+    market_id: int = 0
+    probability_yes: float
+    probability_no: float
+    confidence: float  # 0.0 - 1.0
     reasoning: str
-    lastUpdated: str
+    source: str
 
 
 class CreateMarketRequest(BaseModel):

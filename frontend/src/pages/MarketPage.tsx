@@ -66,11 +66,13 @@ export default function MarketPage() {
         <div className="space-y-4">
           <div className="rounded-xl bg-slate-800/50 border border-slate-700/50 p-5">
             <h3 className="text-sm font-medium text-slate-300 mb-4">
-              Evidence ({market.evidenceCount})
+              Evidence{market.evidenceCount > 0 ? ` · ${market.evidenceCount} submitted` : ''}
             </h3>
-            <div className="mb-4">
-              <EvidenceSubmitForm marketId={marketId} />
-            </div>
+            {!market.resolved && (
+              <div className="mb-4">
+                <EvidenceSubmitForm marketId={marketId} />
+              </div>
+            )}
             <EvidenceList marketId={marketId} />
           </div>
         </div>

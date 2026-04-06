@@ -1,6 +1,4 @@
 import random
-import time
-from datetime import datetime, timezone
 
 import httpx
 from app.config import settings
@@ -16,10 +14,10 @@ class MockMiroFishClient:
         prob = max(0.01, min(0.99, current_yes_price + noise))
 
         if abs(prob - 0.5) < 0.1:
-            confidence = "LOW"
+            confidence = 0.35
             reasoning = "Insufficient evidence to form a strong opinion. Market is roughly balanced."
         elif abs(prob - 0.5) < 0.25:
-            confidence = "MEDIUM"
+            confidence = 0.60
             direction = "YES" if prob > 0.5 else "NO"
             reasoning = (
                 f"Moderate evidence suggests {direction} outcome. "
@@ -27,7 +25,7 @@ class MockMiroFishClient:
                 f"key factors point toward a {prob:.0%} probability."
             )
         else:
-            confidence = "HIGH"
+            confidence = 0.85
             direction = "YES" if prob > 0.5 else "NO"
             reasoning = (
                 f"Strong evidence supports {direction} outcome. "
@@ -36,10 +34,12 @@ class MockMiroFishClient:
             )
 
         return PredictionResponse(
-            probability=round(prob, 4),
+            market_id=market_id,
+            probability_yes=round(prob, 4),
+            probability_no=round(1 - prob, 4),
             confidence=confidence,
             reasoning=reasoning,
-            lastUpdated=datetime.now(timezone.utc).isoformat(),
+            source="MiroFish Mock",
         )
 
 
@@ -56,12 +56,17 @@ class MiroFishClient:
             if resp.status_code == 200:
                 data = resp.json()
                 # Extract probability from report if available
-                prob = data.get("probability", current_yes_price)
+                prob = float(data.get("probability", current_yes_price))
+                confidence_map = {"HIGH": 0.85, "MEDIUM": 0.60, "LOW": 0.35}
+                raw_conf = data.get("confidence", "MEDIUM")
+                confidence = confidence_map.get(raw_conf, 0.60) if isinstance(raw_conf, str) else float(raw_conf)
                 return PredictionResponse(
-                    probability=prob,
-                    confidence=data.get("confidence", "MEDIUM"),
+                    market_id=market_id,
+                    probability_yes=round(prob, 4),
+                    probability_no=round(1 - prob, 4),
+                    confidence=confidence,
                     reasoning=data.get("summary", "MiroFish analysis in progress..."),
-                    lastUpdated=datetime.now(timezone.utc).isoformat(),
+                    source="MiroFish",
                 )
         except Exception:
             pass

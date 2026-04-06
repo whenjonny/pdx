@@ -63,7 +63,7 @@ export default function TradePanel({ market }: TradePanelProps) {
 
       {(isLocked || isExpired || market.resolved) && (
         <div className="mb-4 p-3 rounded-lg bg-amber-900/20 border border-amber-800/30 text-amber-400 text-sm">
-          {market.resolved ? 'Market settled' : isExpired ? 'Market expired' : 'Trading locked (30min before deadline)'}
+          {market.resolved ? 'Market settled — trading is closed. Redeem your tokens below.' : isExpired ? 'Market expired' : 'Trading locked (30min before deadline)'}
         </div>
       )}
 
@@ -76,7 +76,7 @@ export default function TradePanel({ market }: TradePanelProps) {
               : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
           }`}
         >
-          YES {Math.round(market.priceYes * 100)}c
+          YES {Math.round(market.priceYes * 100)}%
         </button>
         <button
           onClick={() => setSide('NO')}
@@ -86,7 +86,7 @@ export default function TradePanel({ market }: TradePanelProps) {
               : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
           }`}
         >
-          NO {Math.round(market.priceNo * 100)}c
+          NO {Math.round(market.priceNo * 100)}%
         </button>
       </div>
 
