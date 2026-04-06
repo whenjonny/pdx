@@ -22,7 +22,7 @@ export default function TradePanel({ market }: TradePanelProps) {
 
   const parsedAmount = parseUSDC(amount);
   const needsApproval = allowance !== undefined && parsedAmount > (allowance as bigint);
-  const isLocked = Date.now() / 1000 >= market.lock_time;
+  const isLocked = Date.now() / 1000 >= market.lockTime;
   const isExpired = Date.now() / 1000 >= market.deadline;
   const canTrade = !isLocked && !isExpired && !market.resolved && parsedAmount > 0n;
 
@@ -44,8 +44,8 @@ export default function TradePanel({ market }: TradePanelProps) {
   const isPending = isApproving || isApproveConfirming || activeBuy.isPending || activeBuy.isConfirming;
 
   // Estimate tokens out (simplified CPMM calc)
-  const reserveYes = Number(market.reserve_yes);
-  const reserveNo = Number(market.reserve_no);
+  const reserveYes = Number(market.reserveYes);
+  const reserveNo = Number(market.reserveNo);
   const k = reserveYes * reserveNo;
   const netInput = Number(parsedAmount) * 0.997; // 0.3% fee
   let estimatedTokens = 0;
@@ -76,7 +76,7 @@ export default function TradePanel({ market }: TradePanelProps) {
               : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
           }`}
         >
-          YES {Math.round(market.price_yes * 100)}c
+          YES {Math.round(market.priceYes * 100)}c
         </button>
         <button
           onClick={() => setSide('NO')}
@@ -86,7 +86,7 @@ export default function TradePanel({ market }: TradePanelProps) {
               : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
           }`}
         >
-          NO {Math.round(market.price_no * 100)}c
+          NO {Math.round(market.priceNo * 100)}c
         </button>
       </div>
 

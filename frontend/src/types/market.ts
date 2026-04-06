@@ -22,22 +22,21 @@ export interface Market {
 export interface MarketFromAPI {
   id: number;
   question: string;
-  condition_id: string;
-  reserve_yes: string;
-  reserve_no: string;
+  reserveYes: string;
+  reserveNo: string;
   k: string;
   deadline: number;
-  lock_time: number;
-  total_deposited: string;
-  fees_accrued: string;
+  lockTime: number;
+  totalDeposited: string;
+  feesAccrued: string;
   resolved: boolean;
   outcome: boolean;
   creator: string;
-  yes_token: string;
-  no_token: string;
-  price_yes: number;
-  price_no: number;
-  evidence_count: number;
+  yesToken: string;
+  noToken: string;
+  priceYes: number;
+  priceNo: number;
+  evidenceCount: number;
 }
 
 export interface Evidence {

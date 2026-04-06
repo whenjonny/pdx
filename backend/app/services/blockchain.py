@@ -68,7 +68,7 @@ class BlockchainService:
             "chainId": settings.chain_id,
         })
         signed = account.sign_transaction(tx)
-        tx_hash = self.w3.eth.send_raw_transaction(signed.raw_transaction)
+        tx_hash = self.w3.eth.send_raw_transaction(signed.rawTransaction)
         self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=30)
         return tx_hash.hex()
 
@@ -108,7 +108,7 @@ class BlockchainService:
             "chainId": settings.chain_id,
         })
         signed = self.account.sign_transaction(tx)
-        tx_hash = self.w3.eth.send_raw_transaction(signed.raw_transaction)
+        tx_hash = self.w3.eth.send_raw_transaction(signed.rawTransaction)
         receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=30)
 
         # Parse MarketCreated event to get market ID

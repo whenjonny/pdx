@@ -10,8 +10,8 @@ interface PositionDisplayProps {
 
 export default function PositionDisplay({ market }: PositionDisplayProps) {
   const { address } = useAccount();
-  const { data: yesBalance } = useTokenBalance(market.yes_token as `0x${string}`, address);
-  const { data: noBalance } = useTokenBalance(market.no_token as `0x${string}`, address);
+  const { data: yesBalance } = useTokenBalance(market.yesToken as `0x${string}`, address);
+  const { data: noBalance } = useTokenBalance(market.noToken as `0x${string}`, address);
   const { redeem, isPending, isConfirming, isSuccess, error } = useRedeem();
 
   const hasYes = yesBalance && (yesBalance as bigint) > 0n;

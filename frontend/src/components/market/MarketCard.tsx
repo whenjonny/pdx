@@ -34,11 +34,11 @@ export default function MarketCard({ market }: MarketCardProps) {
         )}
       </div>
 
-      <PriceBar priceYes={market.price_yes} className="mb-3" />
+      <PriceBar priceYes={market.priceYes} className="mb-3" />
 
       <div className="flex gap-4 text-xs text-slate-500">
-        <span>Volume: ${formatUSDC(BigInt(market.total_deposited))}</span>
-        <span>Evidence: {market.evidence_count}</span>
+        <span>Volume: ${formatUSDC(BigInt(market.totalDeposited))}</span>
+        <span>Evidence: {market.evidenceCount}</span>
       </div>
     </Link>
   );

@@ -38,16 +38,16 @@ export default function MarketPage() {
       <div className="mt-6 mb-8">
         <h1 className="text-xl font-bold text-slate-100 mb-2">{market.question}</h1>
         <div className="flex flex-wrap gap-4 text-sm text-slate-400">
-          <CountdownTimer deadline={market.deadline} lockTime={market.lock_time} />
-          <span>Volume: ${formatUSDC(BigInt(market.total_deposited))}</span>
-          <span>Fees: ${formatUSDC(BigInt(market.fees_accrued))}</span>
+          <CountdownTimer deadline={market.deadline} lockTime={market.lockTime} />
+          <span>Volume: ${formatUSDC(BigInt(market.totalDeposited))}</span>
+          <span>Fees: ${formatUSDC(BigInt(market.feesAccrued))}</span>
           {market.resolved && (
             <span className={market.outcome ? 'text-emerald-400 font-medium' : 'text-rose-400 font-medium'}>
               Settled: {market.outcome ? 'YES' : 'NO'}
             </span>
           )}
         </div>
-        <PriceBar priceYes={market.price_yes} className="mt-4 max-w-md" />
+        <PriceBar priceYes={market.priceYes} className="mt-4 max-w-md" />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
@@ -66,7 +66,7 @@ export default function MarketPage() {
         <div className="space-y-4">
           <div className="rounded-xl bg-slate-800/50 border border-slate-700/50 p-5">
             <h3 className="text-sm font-medium text-slate-300 mb-4">
-              Evidence ({market.evidence_count})
+              Evidence ({market.evidenceCount})
             </h3>
             <div className="mb-4">
               <EvidenceSubmitForm marketId={marketId} />
