@@ -537,6 +537,446 @@ Agent SDK
 
 ---
 
+## Step 12: 新增功能 — 市场筛选/排序/搜索
+
+### 12a. 创建多分类市场
+
+```bash
+# Crypto 分类
+curl -s -X POST http://localhost:8000/api/markets \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "Will ETH reach $10K in 2026?",
+    "initial_liquidity": 5000,
+    "deadline_days": 60,
+    "category": "crypto",
+    "resolution_source": "https://polymarket.com/event/eth-10k"
+  }' | jq
+
+# Politics 分类
+curl -s -X POST http://localhost:8000/api/markets \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "Will the US pass a federal crypto bill in 2026?",
+    "initial_liquidity": 8000,
+    "deadline_days": 90,
+    "category": "politics",
+    "resolution_source": ""
+  }' | jq
+
+# Sports 分类
+curl -s -X POST http://localhost:8000/api/markets \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "Will a European team win the 2026 FIFA World Cup?",
+    "initial_liquidity": 3000,
+    "deadline_days": 120,
+    "category": "sports",
+    "resolution_source": ""
+  }' | jq
+```
+
+### 12b. 按分类筛选
+
+```bash
+# 只看 Crypto 分类
+curl -s "http://localhost:8000/api/markets?category=crypto" | jq '.[].question'
+
+# 只看 Politics 分类
+curl -s "http://localhost:8000/api/markets?category=politics" | jq '.[].question'
+```
+
+**检查点：** 各分类只返回对应分类的市场。
+
+### 12c. 排序测试
+
+```bash
+# 按成交量排序（高到低）
+curl -s "http://localhost:8000/api/markets?sort=volume" | jq '[.[] | {question, totalDeposited}]'
+
+# 按最新创建排序
+curl -s "http://localhost:8000/api/markets?sort=newest" | jq '[.[] | {id, question}]'
+
+# 按即将截止排序
+curl -s "http://localhost:8000/api/markets?sort=ending_soon" | jq '[.[] | {question, deadline}]'
+```
+
+### 12d. 搜索测试
+
+```bash
+# 搜索包含 "BTC" 的市场
+curl -s "http://localhost:8000/api/markets?search=BTC" | jq '.[].question'
+# 期望：只返回包含 BTC 的市场
+
+# 搜索不存在的关键词
+curl -s "http://localhost:8000/api/markets?search=ZZZZZ" | jq
+# 期望：返回空数组 []
+```
+
+### 12e. 状态筛选
+
+```bash
+# 只看活跃市场
+curl -s "http://localhost:8000/api/markets?status=active" | jq '[.[] | {question, resolved}]'
+
+# 只看已结算市场（Step 8 结算后才有）
+curl -s "http://localhost:8000/api/markets?status=resolved" | jq '[.[] | {question, resolved, outcome}]'
+```
+
+### 12f. 分页测试
+
+```bash
+# 第 1 页，每页 2 个
+curl -s "http://localhost:8000/api/markets?page=1&limit=2" | jq 'length'
+# 期望：2
+
+# 第 2 页
+curl -s "http://localhost:8000/api/markets?page=2&limit=2" | jq 'length'
+# 期望：≤2，取决于总市场数
+```
+
+### 12g. 组合筛选
+
+```bash
+# Crypto 分类 + 按成交量排序 + 只看活跃
+curl -s "http://localhost:8000/api/markets?category=crypto&sort=volume&status=active" | jq
+```
+
+---
+
+## Step 13: 新增功能 — 平台统计
+
+```bash
+curl -s http://localhost:8000/api/stats | jq
+```
+
+**期望输出：**
+```json
+{
+  "total_markets": 4,
+  "active_markets": 3,
+  "total_volume": "26000000000",
+  "total_evidence": 1
+}
+```
+
+**检查点：**
+- `total_markets` = 创建的市场总数
+- `active_markets` = 未结算且未过期的市场数
+- `total_volume` = 所有市场 `totalDeposited` 之和
+- `total_evidence` = 所有市场的证据总数
+
+---
+
+## Step 14: 新增功能 — 市场交易记录
+
+```bash
+# 获取市场 0 的交易历史
+curl -s http://localhost:8000/api/markets/0/trades | jq
+```
+
+**期望输出：**
+```json
+[
+  {
+    "type": "buy_yes",
+    "trader": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    "usdc_amount": "500000000",
+    "token_amount": "...",
+    "fee": "500000",
+    "timestamp": 1712345678,
+    "tx_hash": "0x...",
+    "block_number": 15
+  },
+  {
+    "type": "buy_no",
+    "trader": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+    "usdc_amount": "2000000000",
+    "token_amount": "...",
+    "fee": "6000000",
+    "timestamp": 1712345600,
+    "tx_hash": "0x...",
+    "block_number": 12
+  }
+]
+```
+
+**检查点：**
+- 返回按时间倒序排列
+- `type` 正确标记为 `buy_yes`/`buy_no`/`sell_yes`/`sell_no`
+- `fee` 字段：有证据的交易应该更低（0.1% vs 0.3%）
+- 每条记录都有 `tx_hash` 可追溯
+
+---
+
+## Step 15: 新增功能 — 用户个人数据
+
+### 15a. 用户持仓查询
+
+```bash
+TRADER_A=0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+curl -s "http://localhost:8000/api/users/$TRADER_A/positions" | jq
+```
+
+**期望输出：**
+```json
+[
+  {
+    "market_id": 0,
+    "question": "Will BTC exceed $100K by June 2026?",
+    "yes_balance": "1495000000",
+    "no_balance": "0",
+    "current_price_yes": 0.52,
+    "current_price_no": 0.48,
+    "market_resolved": false,
+    "market_outcome": false,
+    "current_value_usdc": "777400000"
+  }
+]
+```
+
+**检查点：**
+- 只返回持有 token 的市场（余额 > 0）
+- `current_value_usdc` ≈ `yes_balance * current_price_yes + no_balance * current_price_no`
+- 无 token 持仓的用户返回空数组 `[]`
+
+### 15b. 用户交易历史
+
+```bash
+curl -s "http://localhost:8000/api/users/$TRADER_A/transactions" | jq
+```
+
+**期望输出：**
+```json
+[
+  {
+    "type": "buy_yes",
+    "market_id": 0,
+    "timestamp": 1712345678,
+    "block_number": 15,
+    "tx_hash": "0x...",
+    "details": {
+      "usdc_in": "500000000",
+      "tokens_out": "498000000",
+      "fee": "500000",
+      "is_yes": true
+    }
+  },
+  {
+    "type": "submit_evidence",
+    "market_id": 0,
+    "timestamp": 1712345600,
+    "block_number": 14,
+    "tx_hash": "0x...",
+    "details": {
+      "ipfs_hash": "0x...",
+      "summary": "BTC halving cycle analysis supports YES outcome"
+    }
+  },
+  {
+    "type": "buy_yes",
+    "market_id": 0,
+    "timestamp": 1712345500,
+    "block_number": 10,
+    "tx_hash": "0x...",
+    "details": {
+      "usdc_in": "1000000000",
+      "tokens_out": "995000000",
+      "fee": "3000000",
+      "is_yes": true
+    }
+  }
+]
+```
+
+**检查点：**
+- 按时间倒序排列（最新在前）
+- 包含所有类型：`buy_yes`, `buy_no`, `sell`, `redeem`, `create_market`, `submit_evidence`
+- 每条记录的 `tx_hash` 可在区块浏览器验证
+- `details` 字段包含类型特定的详细信息
+
+### 15c. 用户摘要
+
+```bash
+curl -s "http://localhost:8000/api/users/$TRADER_A/summary" | jq
+```
+
+**期望输出：**
+```json
+{
+  "address": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+  "active_positions": 1,
+  "markets_created": 0,
+  "evidence_submitted": 1,
+  "total_value_usdc": "777400000"
+}
+```
+
+### 15d. 部署者账户数据（同时是市场创建者）
+
+```bash
+DEPLOYER=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+curl -s "http://localhost:8000/api/users/$DEPLOYER/summary" | jq
+```
+
+**检查点：** `markets_created` 应 ≥ 1（部署者创建了市场）。
+
+### 15e. 无活动用户
+
+```bash
+curl -s "http://localhost:8000/api/users/0x0000000000000000000000000000000000000001/positions" | jq
+# 期望：[]
+
+curl -s "http://localhost:8000/api/users/0x0000000000000000000000000000000000000001/transactions" | jq
+# 期望：[]
+```
+
+---
+
+## Step 16: 新增功能 — 卖出 Token（链上）
+
+在 Step 5 买入后，交易者可以卖回 token：
+
+```bash
+TRADER_A_KEY=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
+TRADER_A=0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+
+# 获取 YES token 地址
+YES_TOKEN=$(cast call $MARKET "getMarketTokens(uint256)(address,address)" 0 --rpc-url http://localhost:8545 | head -1)
+
+# 查看余额
+cast call $YES_TOKEN "balanceOf(address)(uint256)" $TRADER_A --rpc-url http://localhost:8545
+
+# 卖出部分 YES token（例如 500 个 token = 500000000）
+cast send $MARKET "sell(uint256,bool,uint256)" 0 true 500000000 \
+  --rpc-url http://localhost:8545 \
+  --private-key $TRADER_A_KEY
+```
+
+**验证：**
+```bash
+# YES token 余额应减少
+cast call $YES_TOKEN "balanceOf(address)(uint256)" $TRADER_A --rpc-url http://localhost:8545
+
+# USDC 余额应增加
+cast call $USDC "balanceOf(address)(uint256)" $TRADER_A --rpc-url http://localhost:8545
+
+# 交易历史应新增一条 sell 记录
+curl -s "http://localhost:8000/api/users/$TRADER_A/transactions" | jq '.[0]'
+# 期望：type = "sell"
+```
+
+---
+
+## Step 17: 前端新增功能验证
+
+启动前端后，验证以下新功能：
+
+| 页面 | 验证内容 |
+|------|----------|
+| **首页 — 分类标签** | 点击 "Crypto"/"Politics"/"Sports" 标签，市场列表只显示对应分类 |
+| **首页 — 排序** | 切换 "Volume"/"Newest"/"Ending Soon" 排序，列表顺序变化 |
+| **首页 — 搜索** | 输入 "BTC"，只显示包含 BTC 的市场 |
+| **首页 — 统计栏** | 顶部显示总市场数、活跃数、总成交量、总证据数 |
+| **首页 — 丰富卡片** | 市场卡片显示 YES%、成交量、证据数、状态指示器 |
+| **市场详情 — 卖出** | 切换到 "Sell" tab，可选择卖 YES/NO，输入数量卖出 |
+| **市场详情 — 活动** | 切换到 "Activity" tab，显示最近交易记录（交易者/类型/金额/时间） |
+| **创建市场 — 分类** | 创建市场时可选择分类（Crypto/Politics/Sports/Tech/General） |
+| **创建市场 — 解析来源** | 可输入 Polymarket 链接作为解析来源 |
+| **创建市场 — 质押说明** | 显示 "50/50 AMM 拆分" 说明和金额计算 |
+| **Portfolio — 持仓** | `/portfolio` 页面显示所有持仓市场、YES/NO 余额、当前价值 |
+| **Portfolio — 历史** | "History" tab 显示所有交易记录、类型标签、tx hash、时间 |
+| **Portfolio — 摘要** | 顶部显示总价值、活跃持仓数、创建市场数、证据提交数 |
+| **Header** | 导航栏增加 "Portfolio" 链接 |
+
+---
+
+## 完整测试检查清单（更新版）
+
+```
+环境
+  [ ] anvil 启动，端口 8545
+  [ ] 合约部署成功，3 个地址记录
+  [ ] 后端启动，/api/health 返回 chain_connected: true
+  [ ] 前端启动，npm run build 成功
+
+市场生命周期
+  [ ] POST /api/markets 创建市场成功（含分类和解析来源）
+  [ ] GET /api/markets 返回市场列表
+  [ ] GET /api/markets/0 返回市场详情，priceYes ≈ 0.5
+
+市场筛选/排序/搜索（NEW）
+  [ ] ?category=crypto 只返回 Crypto 市场
+  [ ] ?sort=volume 按成交量排序
+  [ ] ?sort=newest 按创建时间排序
+  [ ] ?sort=ending_soon 按截止时间排序
+  [ ] ?search=BTC 只返回包含 BTC 的市场
+  [ ] ?status=active 只返回活跃市场
+  [ ] ?page=1&limit=2 分页正确
+  [ ] 组合筛选正常工作
+
+平台统计（NEW）
+  [ ] GET /api/stats 返回正确的市场数、成交量、证据数
+
+交易
+  [ ] mint USDC 给交易者
+  [ ] approve + buyYes 成功，YES 价格上升
+  [ ] approve + buyNo 成功，YES 价格回落
+  [ ] sell YES token 成功，USDC 余额增加
+  [ ] 交易后 totalDeposited 增加
+
+市场交易记录（NEW）
+  [ ] GET /api/markets/0/trades 返回交易历史
+  [ ] 交易记录按时间倒序
+  [ ] type 正确（buy_yes/buy_no/sell_yes/sell_no）
+  [ ] 每条记录含 tx_hash
+
+证据
+  [ ] POST /api/evidence/upload 返回 CID + hash
+  [ ] submitEvidence 链上提交成功
+  [ ] getEvidenceCount 返回 1
+  [ ] hasEvidence 返回 true
+  [ ] 后续交易手续费为 0.1%
+
+AI 预测
+  [ ] GET /api/predictions/0 返回概率 + 置信度 + 推理
+
+结算 & 赎回
+  [ ] evm_increaseTime 快进 31 天
+  [ ] POST /api/markets/settle 结算成功
+  [ ] resolved = true, outcome = true/false
+  [ ] redeem 赎回成功，USDC 余额增加，token 归零
+
+用户个人数据（NEW）
+  [ ] GET /api/users/{addr}/positions 返回持仓列表
+  [ ] 只返回有 token 的市场
+  [ ] current_value_usdc 计算正确
+  [ ] GET /api/users/{addr}/transactions 返回交易历史
+  [ ] 按时间倒序，含所有类型
+  [ ] GET /api/users/{addr}/summary 返回聚合数据
+  [ ] 无活动用户返回空数据
+
+Agent SDK
+  [ ] pip install -e ./sdk 成功
+  [ ] simple_trade.py 完成交易
+  [ ] agent_trade.py 完成完整流程
+
+前端新功能（NEW）
+  [ ] 首页分类标签筛选正常
+  [ ] 首页排序切换正常
+  [ ] 首页搜索功能正常
+  [ ] 首页统计栏数据正确
+  [ ] 市场详情 Sell tab 可卖出 token
+  [ ] 市场详情 Activity tab 显示交易记录
+  [ ] 创建市场可选分类和填写解析来源
+  [ ] Portfolio 页面持仓列表正确
+  [ ] Portfolio 页面交易历史正确
+  [ ] Portfolio 页面摘要数据正确
+  [ ] Header 含 Portfolio 导航链接
+```
+
+---
+
 ## 常见问题
 
 | 问题 | 原因 | 解决 |
