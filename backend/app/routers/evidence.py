@@ -20,11 +20,11 @@ def upload_evidence(req: EvidenceUploadRequest):
     """Upload evidence to IPFS and return the CID + bytes32 hash."""
     evidence_data = {
         "version": "1.0",
-        "marketId": req.marketId,
+        "marketId": req.market_id,
+        "title": req.title,
+        "content": req.content,
+        "sourceUrl": req.source_url,
         "direction": req.direction,
-        "confidence": req.confidence,
-        "sources": req.sources,
-        "analysis": req.analysis,
     }
 
     try:

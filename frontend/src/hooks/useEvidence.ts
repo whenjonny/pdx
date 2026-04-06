@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { fetchEvidence, uploadEvidence } from '../lib/api';
 import { PDX_MARKET_ADDRESS, PDX_MARKET_ABI } from '../config/contracts';
 import { useState } from 'react';
@@ -13,18 +13,28 @@ export function useEvidenceList(marketId: number) {
   });
 }
 
+export function useHasEvidence(marketId: number, address?: `0x${string}`) {
+  return useReadContract({
+    address: PDX_MARKET_ADDRESS,
+    abi: PDX_MARKET_ABI,
+    functionName: 'hasEvidence',
+    args: address ? [address, BigInt(marketId)] : undefined,
+    query: { enabled: !!address },
+  });
+}
+
 export function useSubmitEvidence() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const { writeContract, data: hash, isPending, error: txError } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
-  async function submit(marketId: number, title: string, content: string, sourceUrl?: string) {
+  async function submit(marketId: number, title: string, content: string, sourceUrl?: string, direction: string = 'YES') {
     setIsUploading(true);
     setUploadError(null);
     try {
-      const result = await uploadEvidence({ market_id: marketId, title, content, source_url: sourceUrl });
-      const ipfsHashBytes = `0x${result.ipfs_hash.replace(/^0x/, '')}` as `0x${string}`;
+      const result = await uploadEvidence({ market_id: marketId, title, content, source_url: sourceUrl, direction });
+      const ipfsHashBytes = `0x${result.evidenceHash.replace(/^0x/, '')}` as `0x${string}`;
       writeContract({
         address: PDX_MARKET_ADDRESS,
         abi: PDX_MARKET_ABI,

@@ -18,6 +18,7 @@ class MarketResponse(BaseModel):
     noToken: str
     priceYes: float  # 0.0 to 1.0
     priceNo: float
+    evidenceCount: int = 0
 
 
 class EvidenceResponse(BaseModel):
@@ -28,11 +29,11 @@ class EvidenceResponse(BaseModel):
 
 
 class EvidenceUploadRequest(BaseModel):
-    marketId: int
-    direction: str  # "YES" or "NO"
-    confidence: float
-    sources: list[dict] = []
-    analysis: str = ""
+    market_id: int
+    title: str
+    content: str
+    source_url: str = ""
+    direction: str = "YES"  # "YES" or "NO"
 
 
 class EvidenceUploadResponse(BaseModel):

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
-import { useSubmitEvidence } from '../../hooks/useEvidence';
+import { useSubmitEvidence, useHasEvidence } from '../../hooks/useEvidence';
 
 interface EvidenceSubmitFormProps {
   marketId: number;
@@ -10,27 +10,59 @@ export default function EvidenceSubmitForm({ marketId }: EvidenceSubmitFormProps
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [sourceUrl, setSourceUrl] = useState('');
+  const [direction, setDirection] = useState<'YES' | 'NO'>('YES');
+  const [showSuccess, setShowSuccess] = useState(false);
   const { address } = useAccount();
   const { submit, isUploading, uploadError, isPending, isConfirming, isSuccess, txError } = useSubmitEvidence();
+  const { data: hasEvidence, refetch: refetchHasEvidence } = useHasEvidence(marketId, address);
 
   const isSubmitting = isUploading || isPending || isConfirming;
+
+  useEffect(() => {
+    if (isSuccess) {
+      setShowSuccess(true);
+      setTitle('');
+      setContent('');
+      setSourceUrl('');
+      setDirection('YES');
+      refetchHasEvidence();
+      const timer = setTimeout(() => setShowSuccess(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isSuccess]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim() || !content.trim()) return;
-    submit(marketId, title, content, sourceUrl || undefined);
-  }
-
-  if (isSuccess) {
-    return (
-      <div className="p-4 rounded-lg bg-emerald-900/20 border border-emerald-800/30 text-emerald-400 text-sm">
-        Evidence submitted! You now get 0.1% trading fees.
-      </div>
-    );
+    submit(marketId, title, content, sourceUrl || undefined, direction);
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setDirection('YES')}
+          className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            direction === 'YES'
+              ? 'bg-emerald-600 text-white'
+              : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+          }`}
+        >
+          YES
+        </button>
+        <button
+          type="button"
+          onClick={() => setDirection('NO')}
+          className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            direction === 'NO'
+              ? 'bg-rose-600 text-white'
+              : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+          }`}
+        >
+          NO
+        </button>
+      </div>
       <input
         type="text"
         placeholder="Evidence title"
@@ -61,6 +93,12 @@ export default function EvidenceSubmitForm({ marketId }: EvidenceSubmitFormProps
         {isSubmitting ? 'Submitting...' : 'Submit Evidence'}
       </button>
 
+      {showSuccess && (
+        <p className="text-xs text-emerald-400">Evidence submitted successfully!</p>
+      )}
+      {!showSuccess && hasEvidence && (
+        <p className="text-xs text-emerald-400">Evidence Submitted - Trading fee reduced to 0.1%</p>
+      )}
       {(uploadError || txError) && (
         <p className="text-xs text-rose-400">
           {uploadError || txError?.message?.slice(0, 100)}

@@ -38,7 +38,7 @@ export default function MarketCard({ market }: MarketCardProps) {
 
       <div className="flex gap-4 text-xs text-slate-500">
         <span>Volume: ${formatUSDC(BigInt(market.totalDeposited))}</span>
-        <span>Evidence: {market.evidenceCount}</span>
+        <span>{market.evidenceCount === 0 ? 'No Evidence' : market.evidenceCount === 1 ? '1 Evidence' : `${market.evidenceCount} Evidences`}</span>
       </div>
     </Link>
   );

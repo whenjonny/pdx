@@ -39,6 +39,7 @@ export async function uploadEvidence(data: {
   title: string;
   content: string;
   source_url?: string;
-}): Promise<{ ipfs_hash: string; cid: string }> {
+  direction: string;
+}): Promise<{ evidenceHash: string; cid: string }> {
   return post('/evidence/upload', data);
 }

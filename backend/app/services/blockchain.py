@@ -159,6 +159,7 @@ class BlockchainService:
             price_yes = self.market_contract.functions.getPriceYes(market_id).call()
             price_no = self.market_contract.functions.getPriceNo(market_id).call()
             tokens = self.market_contract.functions.getMarketTokens(market_id).call()
+            evidence_count = self.market_contract.functions.getEvidenceCount(market_id).call()
 
             return MarketResponse(
                 id=market_id,
@@ -177,6 +178,7 @@ class BlockchainService:
                 noToken=tokens[1],
                 priceYes=price_yes / 1e6,
                 priceNo=price_no / 1e6,
+                evidenceCount=evidence_count,
             )
         except Exception:
             return None
