@@ -32,6 +32,13 @@ export default function TradePanel({ market }: TradePanelProps) {
     }
   }, [approveSuccess]);
 
+  // Reset form on successful buy
+  useEffect(() => {
+    if (activeBuy.isSuccess) {
+      setAmount('');
+    }
+  }, [activeBuy.isSuccess]);
+
   function handleTrade() {
     if (!amount || parsedAmount === 0n) return;
     if (needsApproval) {
@@ -43,70 +50,79 @@ export default function TradePanel({ market }: TradePanelProps) {
 
   const isPending = isApproving || isApproveConfirming || activeBuy.isPending || activeBuy.isConfirming;
 
-  // Estimate tokens out (simplified CPMM calc)
+  // Estimate tokens out (CPMM calc)
   const reserveYes = Number(market.reserveYes);
   const reserveNo = Number(market.reserveNo);
   const k = reserveYes * reserveNo;
   const netInput = Number(parsedAmount) * 0.997; // 0.3% fee
   let estimatedTokens = 0;
+  let priceImpact = 0;
   if (side === 'YES' && netInput > 0) {
     const newReserveYes = k / (reserveNo + netInput);
     estimatedTokens = reserveYes - newReserveYes;
+    // Price impact: difference between spot price and effective price
+    const spotPrice = reserveNo / (reserveYes + reserveNo);
+    const effectivePrice = Number(parsedAmount) / estimatedTokens;
+    priceImpact = estimatedTokens > 0 ? Math.abs(effectivePrice - spotPrice) / spotPrice * 100 : 0;
   } else if (side === 'NO' && netInput > 0) {
     const newReserveNo = k / (reserveYes + netInput);
     estimatedTokens = reserveNo - newReserveNo;
+    priceImpact = estimatedTokens > 0 ? Math.abs((Number(parsedAmount) / estimatedTokens) - (reserveYes / (reserveYes + reserveNo))) / (reserveYes / (reserveYes + reserveNo)) * 100 : 0;
   }
 
-  return (
-    <div className="rounded-xl bg-slate-800/50 border border-slate-700/50 p-5">
-      <h3 className="text-sm font-medium text-slate-300 mb-4">Trade</h3>
+  const priceImpactColor = priceImpact > 5 ? 'text-rose-400' : priceImpact > 2 ? 'text-amber-400' : 'text-slate-200';
 
+  return (
+    <div className="space-y-4">
       {(isLocked || isExpired || market.resolved) && (
-        <div className="mb-4 p-3 rounded-lg bg-amber-900/20 border border-amber-800/30 text-amber-400 text-sm">
-          {market.resolved ? 'Market settled — trading is closed. Redeem your tokens below.' : isExpired ? 'Market expired' : 'Trading locked (30min before deadline)'}
+        <div className="p-3 rounded-lg bg-amber-900/20 border border-amber-800/30 text-amber-400 text-sm">
+          {market.resolved ? 'Market settled -- trading is closed. Redeem your tokens below.' : isExpired ? 'Market expired' : 'Trading locked (30min before deadline)'}
         </div>
       )}
 
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-2">
         <button
           onClick={() => setSide('YES')}
-          className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+          className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
             side === 'YES'
-              ? 'bg-emerald-600 text-white'
-              : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+              ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/30'
+              : 'bg-slate-700 text-slate-400 hover:bg-slate-600 hover:text-slate-300'
           }`}
         >
           YES {Math.round(market.priceYes * 100)}%
         </button>
         <button
           onClick={() => setSide('NO')}
-          className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+          className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
             side === 'NO'
-              ? 'bg-rose-600 text-white'
-              : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+              ? 'bg-rose-600 text-white shadow-lg shadow-rose-900/30'
+              : 'bg-slate-700 text-slate-400 hover:bg-slate-600 hover:text-slate-300'
           }`}
         >
           NO {Math.round(market.priceNo * 100)}%
         </button>
       </div>
 
-      <div className="mb-4">
-        <label className="text-xs text-slate-500 mb-1 block">Amount (USDC)</label>
-        <input
-          type="number"
-          min="0"
-          step="0.01"
-          placeholder="0.00"
-          value={amount}
-          onChange={e => setAmount(e.target.value)}
-          className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-100 text-sm focus:outline-none focus:border-blue-500"
-        />
+      <div>
+        <label className="text-xs text-slate-500 mb-1.5 block">Amount (USDC)</label>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">$</span>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="0.00"
+            value={amount}
+            onChange={e => setAmount(e.target.value)}
+            className="w-full pl-7 pr-3 py-2.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-100 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-colors"
+          />
+        </div>
         {balance !== undefined && (
-          <div className="flex justify-between mt-1 text-xs text-slate-500">
+          <div className="flex justify-between mt-1.5 text-xs text-slate-500">
             <span>Balance: {formatUSDC(balance as bigint)} USDC</span>
             <button
               onClick={() => setAmount((Number(balance) / 1e6).toString())}
-              className="text-blue-400 hover:text-blue-300"
+              className="text-blue-400 hover:text-blue-300 transition-colors"
             >
               Max
             </button>
@@ -115,13 +131,19 @@ export default function TradePanel({ market }: TradePanelProps) {
       </div>
 
       {estimatedTokens > 0 && (
-        <div className="mb-4 p-3 rounded-lg bg-slate-900/50 text-xs text-slate-400 space-y-1">
-          <div className="flex justify-between">
-            <span>Est. tokens</span>
-            <span className="text-slate-200">{(estimatedTokens / 1e6).toFixed(4)} {side}</span>
+        <div className="p-3 rounded-lg bg-slate-900/50 border border-slate-700/30 text-xs space-y-2">
+          <div className="flex justify-between text-slate-400">
+            <span>Est. tokens received</span>
+            <span className="text-slate-200 font-medium">{(estimatedTokens / 1e6).toFixed(4)} {side}</span>
           </div>
-          <div className="flex justify-between">
-            <span>Fee rate</span>
+          <div className="flex justify-between text-slate-400">
+            <span>Price impact</span>
+            <span className={`font-medium ${priceImpactColor}`}>
+              {priceImpact < 0.01 ? '<0.01' : priceImpact.toFixed(2)}%
+            </span>
+          </div>
+          <div className="flex justify-between text-slate-400">
+            <span>Fee</span>
             <span className="text-slate-200">0.3%</span>
           </div>
         </div>
@@ -130,7 +152,11 @@ export default function TradePanel({ market }: TradePanelProps) {
       <button
         onClick={handleTrade}
         disabled={!canTrade || isPending || !address}
-        className="w-full py-2.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-blue-600 text-white hover:bg-blue-500"
+        className={`w-full py-2.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+          side === 'YES'
+            ? 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-900/20'
+            : 'bg-rose-600 text-white hover:bg-rose-500 shadow-lg shadow-rose-900/20'
+        }`}
       >
         {!address
           ? 'Connect Wallet'
@@ -141,8 +167,11 @@ export default function TradePanel({ market }: TradePanelProps) {
               : `Buy ${side}`}
       </button>
 
+      {activeBuy.isSuccess && (
+        <p className="text-xs text-emerald-400">Purchase successful!</p>
+      )}
       {(activeBuy.error || buyYes.error || buyNo.error) && (
-        <p className="mt-2 text-xs text-rose-400">
+        <p className="text-xs text-rose-400">
           {(activeBuy.error || buyYes.error || buyNo.error)?.message?.slice(0, 100)}
         </p>
       )}

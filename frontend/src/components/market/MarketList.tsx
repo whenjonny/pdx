@@ -1,10 +1,15 @@
 import { useAccount } from 'wagmi';
-import { useMarkets } from '../../hooks/useMarkets';
+import type { MarketFromAPI } from '../../types/market';
 import MarketCard from './MarketCard';
 
-export default function MarketList() {
+interface MarketListProps {
+  markets?: MarketFromAPI[];
+  isLoading?: boolean;
+  error?: Error | null;
+}
+
+export default function MarketList({ markets, isLoading, error }: MarketListProps) {
   const { address } = useAccount();
-  const { data: markets, isLoading, error } = useMarkets();
 
   if (isLoading) {
     return (
@@ -26,16 +31,20 @@ export default function MarketList() {
   if (!markets?.length) {
     return (
       <div className="text-center py-20 text-slate-500">
-        <p className="text-lg">No markets yet</p>
-        <p className="text-sm mt-1">Deploy contracts and create a market to get started</p>
+        <p className="text-lg">No markets found</p>
+        <p className="text-sm mt-1">Try adjusting your filters or create a new market</p>
       </div>
     );
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {markets.map(m => (
-        <MarketCard key={m.id} market={m} isOwner={!!address && m.creator.toLowerCase() === address.toLowerCase()} />
+        <MarketCard
+          key={m.id}
+          market={m}
+          isOwner={!!address && m.creator.toLowerCase() === address.toLowerCase()}
+        />
       ))}
     </div>
   );

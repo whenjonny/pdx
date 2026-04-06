@@ -3,6 +3,7 @@ import Header from './components/layout/Header';
 import HomePage from './pages/HomePage';
 import MarketPage from './pages/MarketPage';
 import FaucetPage from './pages/FaucetPage';
+import PortfolioPage from './pages/PortfolioPage';
 
 export default function App() {
   return (
@@ -12,6 +13,7 @@ export default function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/market/:id" element={<MarketPage />} />
         <Route path="/faucet" element={<FaucetPage />} />
+        <Route path="/portfolio" element={<PortfolioPage />} />
       </Routes>
     </div>
   );

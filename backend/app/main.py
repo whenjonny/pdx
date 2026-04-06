@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.models.schemas import HealthResponse
 from app.services.blockchain import blockchain_service
-from app.routers import markets, evidence, predictions
+from app.routers import markets, evidence, predictions, users
 
 app = FastAPI(
     title="PDX Prediction Market API",
@@ -22,6 +22,7 @@ app.add_middleware(
 app.include_router(markets.router)
 app.include_router(evidence.router)
 app.include_router(predictions.router)
+app.include_router(users.router)
 
 
 @app.get("/api/health", response_model=HealthResponse)

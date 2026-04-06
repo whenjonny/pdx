@@ -96,7 +96,7 @@ export default function EvidenceSubmitForm({ marketId }: EvidenceSubmitFormProps
       {showSuccess && (
         <p className="text-xs text-emerald-400">Evidence submitted successfully!</p>
       )}
-      {!showSuccess && hasEvidence && (
+      {!showSuccess && (hasEvidence as boolean) && (
         <p className="text-xs text-emerald-400">Evidence Submitted - Trading fee reduced to 0.1%</p>
       )}
       {(uploadError || txError) && (

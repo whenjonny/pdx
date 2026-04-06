@@ -129,7 +129,7 @@ export function useCreateMarket(owner: `0x${string}` | undefined) {
     queryClient.invalidateQueries({ queryKey: ['markets'] });
   }, [isCreateSuccess, createReceipt]);
 
-  function create(question: string, initialLiquidity: number, deadlineDays: number) {
+  function create(question: string, initialLiquidity: number, deadlineDays: number, _category?: string, _resolutionSource?: string) {
     if (!owner) return;
     const raw = parseUnits(String(initialLiquidity), USDC_DECIMALS);
     const deadline = BigInt(Math.floor(Date.now() / 1000) + deadlineDays * 86400);
@@ -181,5 +181,6 @@ export function useCreateMarket(owner: `0x${string}` | undefined) {
     isLoading: isMinting || isApproving || isCreating,
     createdMarketId,
     error: mintError || approveError || createError,
+    balance: balance as bigint | undefined,
   };
 }

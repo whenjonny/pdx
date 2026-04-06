@@ -3,7 +3,11 @@ from web3 import Web3
 from eth_account import Account
 from app.config import settings
 from app.utils.abi_loader import load_abi
-from app.models.schemas import MarketResponse, EvidenceResponse
+from app.models.schemas import MarketResponse, MarketTrade, EvidenceResponse, UserPosition, UserTransaction
+
+# In-memory storage for off-chain market metadata (MVP)
+_market_categories: dict[int, str] = {}  # market_id -> category
+_market_resolution_sources: dict[int, str] = {}  # market_id -> resolution source URL
 
 
 class BlockchainService:
@@ -179,6 +183,7 @@ class BlockchainService:
                 priceYes=price_yes / 1e6,
                 priceNo=price_no / 1e6,
                 evidenceCount=evidence_count,
+                category=self.get_market_category(market_id),
             )
         except Exception:
             return None
@@ -211,6 +216,244 @@ class BlockchainService:
             return evidence
         except Exception:
             return []
+
+    def set_market_metadata(self, market_id: int, category: str, resolution_source: str) -> None:
+        """Store off-chain market metadata (category and resolution source)."""
+        if category:
+            _market_categories[market_id] = category
+        if resolution_source:
+            _market_resolution_sources[market_id] = resolution_source
+
+    def get_market_category(self, market_id: int) -> str:
+        """Get stored category for a market, defaulting to 'general'."""
+        return _market_categories.get(market_id, "general")
+
+    def get_market_trades(self, market_id: int) -> list[MarketTrade]:
+        """Query Trade and Sold events for a specific market."""
+        if not self.market_contract:
+            return []
+
+        trades: list[MarketTrade] = []
+
+        try:
+            trade_logs = self.market_contract.events.Trade.get_logs(
+                argument_filters={"marketId": market_id},
+                fromBlock=0,
+            )
+            for log in trade_logs:
+                block = self.w3.eth.get_block(log["blockNumber"])
+                trade_type = "buy_yes" if log["args"]["isYes"] else "buy_no"
+                trades.append(MarketTrade(
+                    type=trade_type,
+                    trader=log["args"]["trader"],
+                    usdc_amount=str(log["args"]["usdcIn"]),
+                    token_amount=str(log["args"]["tokensOut"]),
+                    fee=str(log["args"]["fee"]),
+                    timestamp=block["timestamp"],
+                    tx_hash=log["transactionHash"].hex(),
+                    block_number=log["blockNumber"],
+                ))
+        except Exception:
+            pass
+
+        try:
+            sold_logs = self.market_contract.events.Sold.get_logs(
+                argument_filters={"marketId": market_id},
+                fromBlock=0,
+            )
+            for log in sold_logs:
+                block = self.w3.eth.get_block(log["blockNumber"])
+                sell_type = "sell_yes" if log["args"]["isYes"] else "sell_no"
+                trades.append(MarketTrade(
+                    type=sell_type,
+                    trader=log["args"]["trader"],
+                    usdc_amount=str(log["args"]["usdcOut"]),
+                    token_amount=str(log["args"]["tokensIn"]),
+                    fee="0",
+                    timestamp=block["timestamp"],
+                    tx_hash=log["transactionHash"].hex(),
+                    block_number=log["blockNumber"],
+                ))
+        except Exception:
+            pass
+
+        # Sort by block number descending (most recent first)
+        trades.sort(key=lambda t: t.block_number, reverse=True)
+        return trades
+
+    def get_token_balance(self, token_address: str, user_address: str) -> int:
+        """Read ERC20 balanceOf for a given token and user address."""
+        try:
+            abi = load_abi("OutcomeToken")
+            token_contract = self.w3.eth.contract(
+                address=Web3.to_checksum_address(token_address),
+                abi=abi,
+            )
+            return token_contract.functions.balanceOf(
+                Web3.to_checksum_address(user_address)
+            ).call()
+        except Exception:
+            return 0
+
+    def get_user_positions(self, address: str) -> list[UserPosition]:
+        """Get all markets where user holds YES or NO tokens."""
+        markets = self.list_markets()
+        positions = []
+        checksum_address = Web3.to_checksum_address(address)
+
+        for market in markets:
+            try:
+                yes_balance = self.get_token_balance(market.yesToken, checksum_address)
+                no_balance = self.get_token_balance(market.noToken, checksum_address)
+
+                if yes_balance == 0 and no_balance == 0:
+                    continue
+
+                # Estimate current USDC value: balance * price (tokens have 6 decimals like USDC)
+                yes_value = yes_balance * market.priceYes
+                no_value = no_balance * market.priceNo
+                total_value = int(yes_value + no_value)
+
+                positions.append(UserPosition(
+                    market_id=market.id,
+                    question=market.question,
+                    yes_balance=str(yes_balance),
+                    no_balance=str(no_balance),
+                    current_price_yes=market.priceYes,
+                    current_price_no=market.priceNo,
+                    market_resolved=market.resolved,
+                    market_outcome=market.outcome,
+                    current_value_usdc=str(total_value),
+                ))
+            except Exception:
+                continue
+
+        return positions
+
+    def get_user_transactions(self, address: str) -> list[UserTransaction]:
+        """Query event logs for all user activity across event types."""
+        if not self.market_contract:
+            return []
+
+        checksum_address = Web3.to_checksum_address(address)
+        transactions = []
+
+        try:
+            # Trade events where trader == address
+            trade_logs = self.market_contract.events.Trade.get_logs(
+                argument_filters={"trader": checksum_address},
+                fromBlock=0,
+            )
+            for log in trade_logs:
+                block = self.w3.eth.get_block(log["blockNumber"])
+                tx_type = "buy_yes" if log["args"]["isYes"] else "buy_no"
+                transactions.append(UserTransaction(
+                    type=tx_type,
+                    market_id=log["args"]["marketId"],
+                    timestamp=block["timestamp"],
+                    block_number=log["blockNumber"],
+                    tx_hash=log["transactionHash"].hex(),
+                    details={
+                        "usdc_in": str(log["args"]["usdcIn"]),
+                        "tokens_out": str(log["args"]["tokensOut"]),
+                        "fee": str(log["args"]["fee"]),
+                        "is_yes": log["args"]["isYes"],
+                    },
+                ))
+        except Exception:
+            pass
+
+        try:
+            # Sold events where trader == address
+            sold_logs = self.market_contract.events.Sold.get_logs(
+                argument_filters={"trader": checksum_address},
+                fromBlock=0,
+            )
+            for log in sold_logs:
+                block = self.w3.eth.get_block(log["blockNumber"])
+                transactions.append(UserTransaction(
+                    type="sell",
+                    market_id=log["args"]["marketId"],
+                    timestamp=block["timestamp"],
+                    block_number=log["blockNumber"],
+                    tx_hash=log["transactionHash"].hex(),
+                    details={
+                        "is_yes": log["args"]["isYes"],
+                        "tokens_in": str(log["args"]["tokensIn"]),
+                        "usdc_out": str(log["args"]["usdcOut"]),
+                    },
+                ))
+        except Exception:
+            pass
+
+        try:
+            # Redeemed events where user == address
+            redeemed_logs = self.market_contract.events.Redeemed.get_logs(
+                argument_filters={"user": checksum_address},
+                fromBlock=0,
+            )
+            for log in redeemed_logs:
+                block = self.w3.eth.get_block(log["blockNumber"])
+                transactions.append(UserTransaction(
+                    type="redeem",
+                    market_id=log["args"]["marketId"],
+                    timestamp=block["timestamp"],
+                    block_number=log["blockNumber"],
+                    tx_hash=log["transactionHash"].hex(),
+                    details={
+                        "amount": str(log["args"]["amount"]),
+                    },
+                ))
+        except Exception:
+            pass
+
+        try:
+            # MarketCreated events where creator == address
+            created_logs = self.market_contract.events.MarketCreated.get_logs(
+                argument_filters={"creator": checksum_address},
+                fromBlock=0,
+            )
+            for log in created_logs:
+                block = self.w3.eth.get_block(log["blockNumber"])
+                transactions.append(UserTransaction(
+                    type="create_market",
+                    market_id=log["args"]["marketId"],
+                    timestamp=block["timestamp"],
+                    block_number=log["blockNumber"],
+                    tx_hash=log["transactionHash"].hex(),
+                    details={
+                        "question": log["args"]["question"],
+                        "deadline": log["args"]["deadline"],
+                    },
+                ))
+        except Exception:
+            pass
+
+        try:
+            # EvidenceSubmitted events where submitter == address
+            evidence_logs = self.market_contract.events.EvidenceSubmitted.get_logs(
+                argument_filters={"submitter": checksum_address},
+                fromBlock=0,
+            )
+            for log in evidence_logs:
+                block = self.w3.eth.get_block(log["blockNumber"])
+                transactions.append(UserTransaction(
+                    type="submit_evidence",
+                    market_id=log["args"]["marketId"],
+                    timestamp=block["timestamp"],
+                    block_number=log["blockNumber"],
+                    tx_hash=log["transactionHash"].hex(),
+                    details={
+                        "ipfs_hash": "0x" + log["args"]["ipfsHash"].hex(),
+                        "summary": log["args"]["summary"],
+                    },
+                ))
+        except Exception:
+            pass
+
+        # Sort by block number descending (most recent first)
+        transactions.sort(key=lambda t: t.block_number, reverse=True)
+        return transactions
 
 
 blockchain_service = BlockchainService()
