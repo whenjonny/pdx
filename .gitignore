@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Foundry
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+
+# Frontend build
+frontend/dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Python
+*.egg
+.eggs/
+*.so
+.pytest_cache/
+
+# Logs
+*.log
+npm-debug.log*
+
+# MiroFish (cloned external repo)
+mirofish/
+
+# Claude / Trellis
+.claude/
+.trellis/
+
+# Archive (old iterations)
+archive/

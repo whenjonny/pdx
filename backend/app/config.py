@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     mock_usdc_address: str = ""
     pdx_oracle_address: str = ""
 
+    # Deployer private key (for backend write operations - anvil account 0)
+    deployer_private_key: str = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+
     # ABI directory
     abi_dir: str = str(Path(__file__).parent.parent.parent / "contracts" / "abi")
 
