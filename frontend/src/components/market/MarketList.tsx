@@ -1,7 +1,9 @@
+import { useAccount } from 'wagmi';
 import { useMarkets } from '../../hooks/useMarkets';
 import MarketCard from './MarketCard';
 
 export default function MarketList() {
+  const { address } = useAccount();
   const { data: markets, isLoading, error } = useMarkets();
 
   if (isLoading) {
@@ -33,7 +35,7 @@ export default function MarketList() {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       {markets.map(m => (
-        <MarketCard key={m.id} market={m} />
+        <MarketCard key={m.id} market={m} isOwner={!!address && m.creator.toLowerCase() === address.toLowerCase()} />
       ))}
     </div>
   );

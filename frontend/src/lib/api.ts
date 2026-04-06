@@ -34,6 +34,14 @@ export async function fetchPrediction(marketId: number): Promise<Prediction> {
   return get<Prediction>(`/predictions/${marketId}`);
 }
 
+export async function createMarket(data: {
+  question: string;
+  initial_liquidity: number;
+  deadline_days: number;
+}): Promise<{ market_id: number; question: string; deadline: number; initial_liquidity: string; tx_hash: string }> {
+  return post('/markets', data);
+}
+
 export async function uploadEvidence(data: {
   market_id: number;
   title: string;
