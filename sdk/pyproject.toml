@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "pdx-sdk"
+version = "0.1.0"
+description = "PDX Prediction Market Agent SDK"
+requires-python = ">=3.10"
+dependencies = [
+    "web3>=6.0.0",
+    "requests>=2.31.0",
+    "numpy>=1.24.0",
+    "sentence-transformers>=2.2.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0.0", "pytest-asyncio"]
