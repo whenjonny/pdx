@@ -93,7 +93,12 @@ ok "Deployer address: $DEPLOYER_ADDR"
 ETH_BALANCE=$(cast balance "$DEPLOYER_ADDR" --rpc-url "$BASE_SEPOLIA_RPC_URL" 2>/dev/null || echo "0")
 info "ETH balance: $ETH_BALANCE wei"
 if [[ "$ETH_BALANCE" == "0" ]]; then
-  fail "No ETH on deployer. Get testnet ETH from https://www.alchemy.com/faucets/base-sepolia"
+  fail "No ETH on deployer. Get free testnet ETH from:"
+  fail "  Alchemy:   https://www.alchemy.com/faucets/base-sepolia"
+  fail "  Coinbase:  https://portal.cdp.coinbase.com/products/faucet"
+  fail "  Superchain: https://app.optimism.io/faucet"
+  fail "  Chainlink: https://faucets.chain.link/base-sepolia"
+  fail "  See e2e/README.md for all 7 faucet options"
   exit 1
 fi
 ok "Deployer has ETH for gas"

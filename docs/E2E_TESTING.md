@@ -1003,3 +1003,351 @@ Agent SDK
 | `execution reverted` on buyYes | 未 approve USDC | 先 `cast send $USDC "approve(...)"` |
 | `execution reverted: Locked` | 在锁仓期内交易 | deadline 前 30 分钟禁止交易 |
 | MetaMask 连不上 | 网络未添加 | 添加 RPC `http://localhost:8545`, Chain ID `31337` |
+
+---
+
+# Part 2: Base Sepolia 测试网部署
+
+以下流程部署到 Base Sepolia 真实测试网（Chain ID: 84532），验证合约、后端 API、MiroFish AI 分析、IPFS 证据系统在真实链上的完整运行。
+
+---
+
+## 前置条件
+
+| 工具 | 用途 | 安装 |
+|------|------|------|
+| Foundry (forge, cast) | 合约编译/部署/调用 | `curl -L https://foundry.paradigm.xyz \| bash && foundryup` |
+| Node.js >= 18 | 前端构建 | https://nodejs.org |
+| Python >= 3.10 | 后端 API | https://python.org |
+| MetaMask | 浏览器钱包（手动验证时） | https://metamask.io |
+
+---
+
+## Step T0: 获取测试网 ETH
+
+部署合约和发送交易都需要 Base Sepolia ETH（无真实价值，免费领取）。
+
+### 方式一：Alchemy Faucet（推荐）
+
+- 地址: https://www.alchemy.com/faucets/base-sepolia
+- 注册 Alchemy 账号（免费），每天可领 0.1 ETH
+- 同时提供免费 RPC URL（部署合约需要）
+
+### 方式二：Coinbase Developer Platform Faucet
+
+- 地址: https://portal.cdp.coinbase.com/products/faucet
+- 需注册 Coinbase Developer 账号（免费）
+- 选择 "Base Sepolia" 网络，每天可领取
+
+### 方式三：QuickNode Faucet
+
+- 地址: https://faucet.quicknode.com/base/sepolia
+- 注册 QuickNode 免费账号
+- 支持 Base Sepolia 直接领取
+
+### 方式四：Superchain Faucet（OP 官方）
+
+- 地址: https://app.optimism.io/faucet
+- Base 是 OP Stack 链，OP 官方水龙头直接支持 Base Sepolia
+- 需要 GitHub 验证（>1 follower 或 >1 个 repo），无需注册
+
+### 方式五：Chainlink Faucet
+
+- 地址: https://faucets.chain.link/base-sepolia
+- 需连接 MetaMask，支持 Base Sepolia
+- 每次 0.1 ETH
+
+### 方式六：Bware Labs Faucet
+
+- 地址: https://bwarelabs.com/faucets/base-sepolia
+- 无需注册，填入钱包地址即可
+
+### 方式七：从 Sepolia 桥接
+
+如果已有 Sepolia ETH，可以通过 Base 官方桥转到 Base Sepolia：
+1. 先从 https://sepoliafaucet.com 或 https://faucets.chain.link/sepolia 领 Sepolia ETH
+2. 打开 https://testnets.superbridge.app/base-sepolia
+3. 从 Sepolia → Base Sepolia 桥接（约 1-2 分钟到账）
+
+> **提示**: 建议从 2-3 个不同水龙头各领一些，以防某个水龙头暂停服务。
+> 部署 + 完整 E2E 测试大约需要 **0.01 ETH**，领到 0.1 ETH 足够测试很多次。
+
+### 关于 USDC
+
+PDX 使用自部署的 **MockUSDC** 合约，部署时会自动给 deployer 铸造 1,000,000 USDC。
+**不需要** 从任何水龙头获取 USDC。
+
+---
+
+## Step T1: 配置环境
+
+### 合约 .env
+
+```bash
+cp contracts/.env.example contracts/.env
+```
+
+填入：
+```bash
+PRIVATE_KEY=0x你的私钥         # MetaMask 导出，仅测试网使用！
+BASE_SEPOLIA_RPC_URL=https://base-sepolia.g.alchemy.com/v2/你的KEY
+```
+
+### 获取 RPC URL
+
+| Provider | 免费额度 | 地址 |
+|----------|---------|------|
+| Alchemy | 300M compute units/月 | https://dashboard.alchemy.com |
+| QuickNode | 50M API credits/月 | https://dashboard.quicknode.com |
+| Infura | 100K requests/日 | https://app.infura.io |
+| Ankr | 30 req/s 免费 | https://rpc.ankr.com/base_sepolia (无需注册) |
+| PublicNode | 无需注册 | https://base-sepolia-rpc.publicnode.com |
+
+> **最简方式**: 不想注册可直接用 `https://base-sepolia-rpc.publicnode.com` 或 `https://rpc.ankr.com/base_sepolia`（免费公共 RPC，适合测试）
+
+---
+
+## Step T2: 部署合约
+
+```bash
+# 一键完整流程：部署 → 验证 → 创建市场 → 交易 → 证据 → API → 前端 → 卖出
+./e2e/testnet-deploy.sh
+
+# 如果已部署过，跳过部署步骤：
+./e2e/testnet-deploy.sh --skip-deploy
+```
+
+脚本会自动执行 8 个阶段（详见下方）。
+
+### 手动部署（如需精细控制）
+
+```bash
+cd contracts
+
+# 1. 运行单元测试
+forge test --no-match-test "testFuzz"
+
+# 2. 部署到 Base Sepolia
+forge script script/Deploy.s.sol:DeployScript \
+  --rpc-url $BASE_SEPOLIA_RPC_URL \
+  --broadcast --slow
+
+# 3. 记下输出的 3 个合约地址
+#    MockUSDC:   0x...
+#    PDXMarket:  0x...
+#    PDXOracle:  0x...
+```
+
+---
+
+## Step T3: 配置后端
+
+```bash
+cd backend
+cp .env.example .env
+```
+
+编辑 `backend/.env`：
+```bash
+RPC_URL=https://base-sepolia.g.alchemy.com/v2/你的KEY
+CHAIN_ID=84532
+PDX_MARKET_ADDRESS=0x...   # Step T2 部署得到
+MOCK_USDC_ADDRESS=0x...    # Step T2 部署得到
+PDX_ORACLE_ADDRESS=0x...   # Step T2 部署得到
+
+# IPFS（可选，不配则用内存 mock）
+PINATA_API_KEY=...
+PINATA_SECRET_KEY=...
+
+# MiroFish AI（可选，不配则用启发式分析）
+USE_MOCK_MIROFISH=false
+MIROFISH_LLM_API_KEY=sk-...
+MIROFISH_LLM_BASE_URL=https://api.openai.com/v1
+MIROFISH_LLM_MODEL=gpt-4o-mini
+MIROFISH_INTERVAL_SECONDS=300
+```
+
+启动：
+```bash
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+---
+
+## Step T4: 配置前端
+
+```bash
+cd frontend
+```
+
+创建 `.env.local`：
+```bash
+VITE_CHAIN=testnet
+VITE_RPC_URL=https://base-sepolia.g.alchemy.com/v2/你的KEY
+VITE_PDX_MARKET_ADDRESS=0x...
+VITE_MOCK_USDC_ADDRESS=0x...
+```
+
+构建或开发模式：
+```bash
+npm install
+npm run dev        # 开发模式 → http://localhost:5173
+npm run build      # 生产构建 → dist/
+```
+
+---
+
+## Step T5: 在浏览器中手动测试
+
+1. **MetaMask 配置**
+   - 添加自定义网络：RPC `https://base-sepolia-rpc.publicnode.com`, Chain ID `84532`, Symbol `ETH`
+   - 导入 deployer 私钥
+
+2. **测试流程**
+   - 打开 http://localhost:5173
+   - 连接钱包
+   - 创建市场 → Buy YES/NO → 提交证据 → 查看 MiroFish AI 分析 → 查看 Network 图
+   - Portfolio 页面查看持仓和交易历史
+
+3. **BaseScan 验证**
+   - 打开 https://sepolia.basescan.org
+   - 搜索 PDXMarket 地址查看链上交易记录
+
+---
+
+## 自动化 E2E 测试流程（8 阶段）
+
+```
+Phase 1: Prerequisites Check
+  ├── 检查工具链 (forge, cast, python3, node)
+  ├── 加载 contracts/.env
+  └── 验证 deployer 有 ETH
+
+Phase 2: Contract Deployment
+  ├── 运行 forge test（先跑单元测试）
+  ├── forge script Deploy.s.sol → Base Sepolia
+  └── 提取合约地址
+
+Phase 3: On-chain Verification
+  ├── MockUSDC 合约响应检查
+  ├── PDXMarket 合约响应检查
+  ├── Oracle 地址正确性
+  └── deployer USDC 余额
+
+Phase 4: Create Sample Market
+  ├── 创建示例市场
+  ├── 读取 market question
+  └── 验证 YES price > 0
+
+Phase 5: Trading Test (Buy YES)
+  ├── Approve USDC → PDXMarket
+  ├── buyYes(0, 100 USDC)
+  └── 验证价格上涨（AMM 生效）
+
+Phase 6: Backend API + Evidence + MiroFish
+  ├── GET /api/health
+  ├── GET /api/markets + /api/markets/0
+  ├── GET /api/predictions/0 (MiroFish AI 参考概率)
+  ├── POST /api/evidence/upload (IPFS 上传)
+  ├── cast submitEvidence (链上提交)
+  ├── GET /api/evidence/0 (验证上链)
+  ├── GET /api/evidence/0/0/content (IPFS 全文读取)
+  ├── GET /api/predictions/topics/suggest (话题生成)
+  ├── buyYes after evidence (0.1% 减免手续费)
+  ├── GET /api/predictions/0 (含 amm_price_yes 对比)
+  └── GET /api/markets/0/trades
+
+Phase 7: Frontend Build Test
+  ├── 配置 .env.local (testnet mode)
+  └── npm run build → dist/index.html
+
+Phase 8: Sell Test
+  ├── 查询 YES token 余额
+  ├── sellYes (卖回一半)
+  └── 验证价格下降（AMM 反向生效）
+```
+
+---
+
+## 完整数据流
+
+```
+用户提交证据
+    │
+    ├─→ POST /api/evidence/upload
+    │     └─→ IPFS pin_json() → CID + bytes32 hash
+    │           └─→ CID 注册到 _cid_registry
+    │
+    ├─→ cast submitEvidence(marketId, bytes32, summary)
+    │     └─→ 链上存储: submitter + bytes32 + summary + timestamp
+    │
+    └─→ hasEvidence[user]=true → 下次交易手续费 0.1%
+
+MiroFish 定时分析 (每5分钟)
+    │
+    ├─→ blockchain_service.list_markets() → 活跃市场
+    ├─→ blockchain_service.get_evidence_list() → 链上证据列表
+    ├─→ ipfs_service.fetch_by_hash(bytes32) → IPFS 全文内容
+    │     包含: title, content, direction, sourceUrl
+    │
+    └─→ analyze_market(question, full_evidence)
+          ├── LLM mode: 完整内容 + 方向 → prompt → 概率
+          └── Heuristic: direction 权重 + 时间衰减 → 概率
+
+前端展示
+    ├─→ AMM 价格 → "Market Price" (真实成交价)
+    ├─→ MiroFish → "AI Reference" (参考值, 仅供参考)
+    └─→ Network Graph → 证据网络图 (证据节点 → AI 中心节点)
+```
+
+---
+
+## 测试网常见问题
+
+| 问题 | 原因 | 解决 |
+|------|------|------|
+| `insufficient funds` | 测试 ETH 不够 | 去水龙头领，见 Step T0 |
+| `could not connect` | RPC URL 错误 | 检查 Alchemy/QuickNode API key，或用公共 RPC |
+| `nonce too low` | 之前的交易还没确认 | 等几秒重试 |
+| Backend 504 | RPC 限流 | 换一个 RPC provider 或等一会儿 |
+| Price 没变化 | 交易可能没上链 | 检查 BaseScan 上的 tx hash |
+| IPFS content 404 | CID 注册在内存中，重启后丢失 | 重新上传证据或配置 Pinata |
+| Topic suggest 返回默认值 | 没配置 LLM key | 设置 MIROFISH_LLM_API_KEY |
+| 水龙头领不到 | 每日限额/IP 限制 | 换另一个水龙头（Step T0 列了 7 种） |
+
+---
+
+## 环境变量完整清单
+
+```bash
+# ── contracts/.env ──
+PRIVATE_KEY=0x...
+BASE_SEPOLIA_RPC_URL=https://base-sepolia.g.alchemy.com/v2/KEY
+MOCK_USDC=0x...      # 部署后填（用于 --skip-deploy）
+PDX_MARKET=0x...     # 部署后填
+PDX_ORACLE=0x...     # 部署后填
+
+# ── backend/.env ──
+RPC_URL=https://base-sepolia.g.alchemy.com/v2/KEY
+CHAIN_ID=84532
+PDX_MARKET_ADDRESS=0x...
+MOCK_USDC_ADDRESS=0x...
+PDX_ORACLE_ADDRESS=0x...
+DEPLOYER_PRIVATE_KEY=0x...       # 后端用于发送交易
+PINATA_API_KEY=...               # 可选
+PINATA_SECRET_KEY=...            # 可选
+PINATA_GATEWAY_URL=...           # 可选
+USE_MOCK_MIROFISH=false          # false=启用真实分析
+MIROFISH_LLM_API_KEY=sk-...     # 可选，空=启发式
+MIROFISH_LLM_BASE_URL=https://api.openai.com/v1
+MIROFISH_LLM_MODEL=gpt-4o-mini
+MIROFISH_INTERVAL_SECONDS=300
+
+# ── frontend/.env.local ──
+VITE_CHAIN=testnet
+VITE_RPC_URL=https://base-sepolia.g.alchemy.com/v2/KEY
+VITE_PDX_MARKET_ADDRESS=0x...
+VITE_MOCK_USDC_ADDRESS=0x...
+```

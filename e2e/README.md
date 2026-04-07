@@ -25,9 +25,19 @@ PRIVATE_KEY=0x你的私钥         # MetaMask 导出，仅测试网使用
 BASE_SEPOLIA_RPC_URL=https://base-sepolia.g.alchemy.com/v2/你的KEY
 ```
 
-### 2. 获取测试 ETH
+### 2. 获取测试 ETH（多种方式）
 
-https://www.alchemy.com/faucets/base-sepolia
+| 水龙头 | 地址 | 说明 |
+|--------|------|------|
+| Alchemy（推荐） | https://www.alchemy.com/faucets/base-sepolia | 注册免费，同时获得 RPC URL |
+| Coinbase CDP | https://portal.cdp.coinbase.com/products/faucet | Coinbase 开发者平台 |
+| QuickNode | https://faucet.quicknode.com/base/sepolia | 注册免费 |
+| Superchain (OP) | https://app.optimism.io/faucet | 需 GitHub 验证，无需注册 |
+| Chainlink | https://faucets.chain.link/base-sepolia | 连接 MetaMask 领取 |
+| Bware Labs | https://bwarelabs.com/faucets/base-sepolia | 无需注册 |
+| Sepolia→Base 桥接 | https://testnets.superbridge.app/base-sepolia | 先领 Sepolia ETH 再桥接 |
+
+> MockUSDC 由合约自动铸造，**不需要** 从水龙头获取 USDC。
 
 ### 3. (可选) IPFS 配置
 
@@ -159,7 +169,7 @@ MiroFish 定时分析 (每5分钟)
 
 | 问题 | 原因 | 解决 |
 |------|------|------|
-| `insufficient funds` | 测试 ETH 不够 | 去水龙头领：https://www.alchemy.com/faucets/base-sepolia |
+| `insufficient funds` | 测试 ETH 不够 | 去水龙头领（见上方"获取测试 ETH"，7 种方式） |
 | `could not connect` | RPC URL 错误 | 检查 Alchemy API key |
 | `nonce too low` | 之前的交易还没确认 | 等几秒重试 |
 | Backend 504 | RPC 限流 | 换一个 RPC provider 或等一会儿 |
