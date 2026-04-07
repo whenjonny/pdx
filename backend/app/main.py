@@ -9,7 +9,10 @@ from app.routers import markets, evidence, predictions, users
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    # Startup — init database
+    from app.services.database import init_db
+    init_db()
+
     if not settings.use_mock_mirofish:
         from app.services.mirofish_scheduler import mirofish_scheduler
         mirofish_scheduler.start()

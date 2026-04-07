@@ -7,10 +7,7 @@ from app.utils.abi_loader import load_abi
 from app.models.schemas import MarketResponse, MarketTrade, EvidenceResponse, UserPosition, UserTransaction
 
 logger = logging.getLogger("blockchain")
-
-# In-memory storage for off-chain market metadata (MVP)
-_market_categories: dict[int, str] = {}  # market_id -> category
-_market_resolution_sources: dict[int, str] = {}  # market_id -> resolution source URL
+from app.services import database as db
 
 
 class BlockchainService:
@@ -270,14 +267,11 @@ class BlockchainService:
 
     def set_market_metadata(self, market_id: int, category: str, resolution_source: str) -> None:
         """Store off-chain market metadata (category and resolution source)."""
-        if category:
-            _market_categories[market_id] = category
-        if resolution_source:
-            _market_resolution_sources[market_id] = resolution_source
+        db.set_market_metadata(market_id, category, resolution_source)
 
     def get_market_category(self, market_id: int) -> str:
         """Get stored category for a market, defaulting to 'general'."""
-        return _market_categories.get(market_id, "general")
+        return db.get_market_category(market_id)
 
     def get_market_trades(self, market_id: int) -> list[MarketTrade]:
         """Query Trade and Sold events for a specific market."""

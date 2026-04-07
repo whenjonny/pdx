@@ -30,6 +30,9 @@ frontend/dist/
 *~
 .DS_Store
 
+# Database
+backend/data/
+
 # Python
 *.egg
 .eggs/

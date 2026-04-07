@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     # ABI directory
     abi_dir: str = str(Path(__file__).parent.parent.parent / "contracts" / "abi")
 
+    # SQLite database path
+    db_path: str = str(Path(__file__).parent.parent / "data" / "pdx.db")
+
     # IPFS / Pinata (optional for MVP)
     pinata_api_key: str = ""
     pinata_secret_key: str = ""

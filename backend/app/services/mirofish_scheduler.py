@@ -27,11 +27,21 @@ class MiroFishScheduler:
         self._task: asyncio.Task | None = None
 
     def get_cached_prediction(self, market_id: int) -> CachedPrediction | None:
-        return self._cache.get(market_id)
+        pred = self._cache.get(market_id)
+        if pred:
+            return pred
+        # Fallback: load from SQLite
+        from app.services import database as db
+        row = db.get_prediction(market_id)
+        if row:
+            cached = CachedPrediction(**row)
+            self._cache[market_id] = cached
+            return cached
+        return None
 
     def is_stale(self, market_id: int, max_age: int = 600) -> bool:
         """Check if prediction is stale (older than max_age seconds)."""
-        pred = self._cache.get(market_id)
+        pred = self.get_cached_prediction(market_id)
         if pred is None:
             return True
         return (int(time.time()) - pred.updated_at) > max_age
@@ -72,6 +82,17 @@ class MiroFishScheduler:
             updated_at=int(time.time()),
         )
         self._cache[market_id] = cached
+        # Persist to SQLite
+        from app.services import database as db
+        db.set_prediction(
+            market_id=cached.market_id,
+            probability_yes=cached.probability_yes,
+            probability_no=cached.probability_no,
+            confidence=cached.confidence,
+            reasoning=cached.reasoning,
+            source=cached.source,
+            updated_at=cached.updated_at,
+        )
         return cached
 
     async def _run_cycle(self):

@@ -12,10 +12,8 @@ class IPFSService:
     """IPFS pinning & fetching via Pinata. Falls back to local mock if no API key."""
 
     def __init__(self):
-        # bytes32_hex -> CID mapping (populated on upload)
-        self._cid_registry: dict[str, str] = {}
-        # Mock mode: CID -> data (for local fetch without real IPFS)
-        self._mock_store: dict[str, dict] = {}
+        # In-memory caches backed by SQLite — loaded lazily from DB
+        pass
 
     def pin_json(self, data: dict) -> str:
         """Pin JSON data to IPFS, return CID."""
@@ -24,16 +22,19 @@ class IPFSService:
         else:
             cid = self._mock_pin(data)
 
-        # Register CID mapping for later retrieval
+        # Register CID mapping for later retrieval (persisted to SQLite)
+        from app.services import database as db
         bytes32_hex = "0x" + self.data_to_bytes32(cid).hex()
-        self._cid_registry[bytes32_hex] = cid
+        db.set_cid(bytes32_hex, cid)
         return cid
 
     def fetch_json(self, cid: str) -> dict | None:
         """Fetch JSON content from IPFS by CID."""
-        # Check mock store first
-        if cid in self._mock_store:
-            return self._mock_store[cid]
+        # Check local store first (SQLite-backed)
+        from app.services import database as db
+        local = db.get_mock_data(cid)
+        if local:
+            return local
 
         # Try Pinata dedicated gateway
         if settings.pinata_api_key:
@@ -62,7 +63,8 @@ class IPFSService:
 
     def fetch_by_hash(self, bytes32_hex: str) -> dict | None:
         """Fetch IPFS content using on-chain bytes32 hash."""
-        cid = self._cid_registry.get(bytes32_hex)
+        from app.services import database as db
+        cid = db.get_cid(bytes32_hex)
         if not cid:
             logger.debug("No CID registered for hash %s", bytes32_hex)
             return None
@@ -70,7 +72,8 @@ class IPFSService:
 
     def get_cid(self, bytes32_hex: str) -> str | None:
         """Look up CID from bytes32 hash."""
-        return self._cid_registry.get(bytes32_hex)
+        from app.services import database as db_mod
+        return db_mod.get_cid(bytes32_hex)
 
     def _pinata_pin(self, data: dict) -> str:
         resp = httpx.post(
@@ -86,11 +89,12 @@ class IPFSService:
         return resp.json()["IpfsHash"]
 
     def _mock_pin(self, data: dict) -> str:
-        """Generate a deterministic fake CID for testing and store data."""
+        """Generate a deterministic fake CID for testing and store data in SQLite."""
+        from app.services import database as db
         content = json.dumps(data, sort_keys=True).encode()
         h = hashlib.sha256(content).hexdigest()[:46]
         cid = f"Qm{h}"
-        self._mock_store[cid] = data
+        db.set_mock_data(cid, data)
         return cid
 
     def data_to_bytes32(self, cid: str) -> bytes:
