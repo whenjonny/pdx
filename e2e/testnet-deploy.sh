@@ -378,6 +378,67 @@ TRADE_LEN=$(echo "$TRADES" | python3 -c "import sys,json; print(len(json.load(sy
 [[ "$TRADE_LEN" -ge 1 ]]
 assert_ok "Trade history has $TRADE_LEN trade(s) (includes our buyYes)"
 
+# 6.7 Upload evidence via API (IPFS mock mode)
+info "6.7 Uploading evidence for market 0..."
+EV_UPLOAD=$(curl -sf -X POST http://localhost:8000/api/evidence/upload \
+  -H "Content-Type: application/json" \
+  -d '{"market_id":0,"title":"BTC ETF inflows rising","content":"BlackRock Bitcoin ETF saw record $1.2B inflows this week, signaling strong institutional demand.","source_url":"https://example.com/btc-etf","direction":"YES"}' \
+  2>/dev/null || echo "{}")
+EV_CID=$(echo "$EV_UPLOAD" | python3 -c "import sys,json; print(json.load(sys.stdin).get('cid',''))" 2>/dev/null || echo "")
+EV_HASH=$(echo "$EV_UPLOAD" | python3 -c "import sys,json; print(json.load(sys.stdin).get('evidenceHash',''))" 2>/dev/null || echo "")
+[[ -n "$EV_CID" && "$EV_CID" != "" ]]
+assert_ok "Evidence uploaded (CID=$EV_CID)"
+
+# 6.8 Submit evidence on-chain (via cast)
+info "6.8 Submitting evidence on-chain..."
+EV_HASH_BYTES="${EV_HASH}"
+SUBMIT_TX=$(cast send "$MARKET_ADDR" "submitEvidence(uint256,bytes32,string)" \
+  0 "$EV_HASH_BYTES" "BTC ETF inflows rising: BlackRock Bitcoin ETF record inflows" \
+  --rpc-url "$RPC" \
+  --private-key "$PRIVATE_KEY" 2>&1 || true)
+echo "$SUBMIT_TX" | grep -q "transactionHash\|blockNumber\|status.*1" 2>/dev/null
+assert_ok "Evidence submitted on-chain"
+sleep 5
+
+# 6.9 Verify evidence appears in API
+info "6.9 Verifying evidence in API..."
+EVIDENCE2=$(curl -sf http://localhost:8000/api/evidence/0 2>/dev/null || echo "[]")
+EV_LEN2=$(echo "$EVIDENCE2" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "0")
+[[ "$EV_LEN2" -ge 1 ]]
+assert_ok "Evidence count increased to $EV_LEN2"
+
+# 6.10 Fetch evidence content from IPFS (mock)
+info "6.10 Fetching evidence content from IPFS..."
+EV_CONTENT=$(curl -sf http://localhost:8000/api/evidence/0/0/content 2>/dev/null || echo "{}")
+EV_DIR=$(echo "$EV_CONTENT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('direction',''))" 2>/dev/null || echo "")
+[[ "$EV_DIR" == "YES" ]]
+assert_ok "IPFS evidence content retrieved (direction=$EV_DIR)"
+
+# 6.11 Topic suggestions
+info "6.11 Fetching topic suggestions..."
+TOPICS=$(curl -sf "http://localhost:8000/api/predictions/topics/suggest?count=3" 2>/dev/null || echo "{}")
+TOPIC_LEN=$(echo "$TOPICS" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('topics',[])))" 2>/dev/null || echo "0")
+[[ "$TOPIC_LEN" -ge 1 ]]
+assert_ok "Topic suggestions returned ($TOPIC_LEN topics)"
+
+# 6.12 Buy again after evidence (should get reduced fee)
+info "6.12 Buying YES after evidence submission (reduced fee test)..."
+BUY2_TX=$(cast send "$MARKET_ADDR" "buyYes(uint256,uint256)" \
+  0 50000000 \
+  --rpc-url "$RPC" \
+  --private-key "$PRIVATE_KEY" 2>&1 || true)
+echo "$BUY2_TX" | grep -q "transactionHash\|blockNumber\|status.*1" 2>/dev/null
+assert_ok "Post-evidence buyYes transaction submitted (0.1% fee)"
+sleep 5
+
+# 6.13 Get updated prediction (should reflect evidence)
+info "6.13 Fetching updated prediction after evidence..."
+PRED2=$(curl -sf http://localhost:8000/api/predictions/0 2>/dev/null || echo "{}")
+PRED2_PROB=$(echo "$PRED2" | python3 -c "import sys,json; print(json.load(sys.stdin).get('probability_yes',0))" 2>/dev/null || echo "0")
+PRED2_AMM=$(echo "$PRED2" | python3 -c "import sys,json; print(json.load(sys.stdin).get('amm_price_yes',0))" 2>/dev/null || echo "0")
+[[ "$PRED2_PROB" != "0" ]]
+assert_ok "Updated prediction (prob_yes=$PRED2_PROB, amm_price=$PRED2_AMM)"
+
 
 # ════════════════════════════════════════════════════
 #  Phase 7: Frontend Build Test

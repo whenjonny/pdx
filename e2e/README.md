@@ -13,23 +13,37 @@ Base Sepolia 测试链端到端测试流程。
 
 ## 配置
 
-1. 复制 `contracts/.env.example` 为 `contracts/.env`
-2. 填入：
+### 1. 合约配置
 
+```bash
+cp contracts/.env.example contracts/.env
+```
+
+填入：
 ```bash
 PRIVATE_KEY=0x你的私钥         # MetaMask 导出，仅测试网使用
 BASE_SEPOLIA_RPC_URL=https://base-sepolia.g.alchemy.com/v2/你的KEY
 ```
 
-3. 确保钱包有测试 ETH：https://www.alchemy.com/faucets/base-sepolia
+### 2. 获取测试 ETH
+
+https://www.alchemy.com/faucets/base-sepolia
+
+### 3. (可选) IPFS 配置
+
+注册 https://www.pinata.cloud (免费)，拿到 API key。不配置则用 mock 模式。
+
+### 4. (可选) LLM 配置
+
+配置 OpenAI 兼容 API key，MiroFish 会用 LLM 分析证据。不配置则用启发式算法。
 
 ## 运行
 
 ```bash
-# 完整流程：部署合约 → 验证 → 创建市场 → 交易测试 → 后端 API 测试 → 前端构建
+# 完整流程：部署 → 验证 → 市场 → 交易 → 证据 → IPFS → API → 前端
 ./e2e/testnet-deploy.sh
 
-# 已有合约地址，跳过部署（需在 contracts/.env 中设置 MOCK_USDC, PDX_MARKET, PDX_ORACLE）
+# 已有合约地址，跳过部署
 ./e2e/testnet-deploy.sh --skip-deploy
 ```
 
@@ -65,10 +79,15 @@ Phase 5: Trading Test (Buy YES)
 Phase 6: Backend API Test
   ├── 启动 FastAPI 后端（连 Base Sepolia）
   ├── GET /api/health
-  ├── GET /api/markets
-  ├── GET /api/markets/0
-  ├── GET /api/predictions/0
-  ├── GET /api/evidence/0
+  ├── GET /api/markets + /api/markets/0
+  ├── GET /api/predictions/0 (MiroFish 参考概率)
+  ├── POST /api/evidence/upload (IPFS 上传证据)
+  ├── cast submitEvidence (链上提交证据)
+  ├── GET /api/evidence/0 (验证证据上链)
+  ├── GET /api/evidence/0/0/content (IPFS 全文读取)
+  ├── GET /api/predictions/topics/suggest (话题生成)
+  ├── buyYes after evidence (0.1% 减免手续费)
+  ├── GET /api/predictions/0 (含 amm_price_yes 对比)
   └── GET /api/markets/0/trades
 
 Phase 7: Frontend Build Test
@@ -79,6 +98,36 @@ Phase 8: Sell Test
   ├── 查询 YES token 余额
   ├── sellYes (卖回一半)
   └── 验证价格下降（AMM 反向生效）
+```
+
+## 完整数据流
+
+```
+用户提交证据
+    │
+    ├─→ POST /api/evidence/upload
+    │     └─→ IPFS pin_json() → CID + bytes32 hash
+    │           └─→ CID 注册到 _cid_registry
+    │
+    ├─→ cast submitEvidence(marketId, bytes32, summary)
+    │     └─→ 链上存储: submitter + bytes32 + summary + timestamp
+    │
+    └─→ hasEvidence[user]=true → 下次交易手续费 0.1%
+
+MiroFish 定时分析 (每5分钟)
+    │
+    ├─→ blockchain_service.list_markets() → 活跃市场
+    ├─→ blockchain_service.get_evidence_list() → 链上证据列表
+    ├─→ ipfs_service.fetch_by_hash(bytes32) → IPFS 全文内容
+    │     包含: title, content, direction, sourceUrl
+    │
+    └─→ analyze_market(question, full_evidence)
+          ├── LLM mode: 完整内容 + 方向 → prompt → 概率
+          └── Heuristic: direction 权重 + 时间衰减 → 概率
+
+前端展示
+    ├─→ AMM 价格 → "Market Price" (真实成交价)
+    └─→ MiroFish → "AI Reference" (参考值, 仅供参考)
 ```
 
 ## 输出示例
@@ -93,10 +142,15 @@ Phase 8: Sell Test
 [OK]  Backend health check passed
 [OK]  Backend returns 1 market(s)
 [OK]  Prediction returned (prob_yes=0.52, source=MiroFish Mock)
+[OK]  Evidence uploaded (CID=Qm...)
+[OK]  Evidence submitted on-chain
+[OK]  IPFS evidence content retrieved (direction=YES)
+[OK]  Topic suggestions returned (5 topics)
+[OK]  Post-evidence buyYes transaction submitted (0.1% fee)
 [OK]  Frontend build succeeded
 [OK]  YES price decreased after sell (AMM working)
 
-  Passed: 14
+  Passed: 21
   Failed: 0
   All tests passed!
 ```
@@ -110,12 +164,43 @@ Phase 8: Sell Test
 | `nonce too low` | 之前的交易还没确认 | 等几秒重试 |
 | Backend 504 | RPC 限流 | 换一个 RPC provider 或等一会儿 |
 | Price 没变化 | 交易可能没上链 | 检查 BaseScan 上的 tx hash |
+| IPFS content 404 | CID 注册在内存中，重启后丢失 | 重新上传证据或配置 Pinata |
+| Topic suggest 返回默认值 | 没配置 LLM key | 设置 MIROFISH_LLM_API_KEY |
 
-## 手动验证
+## 手动浏览器验证
 
-部署完成后，也可以手动在浏览器上验证：
+部署完成后，可以在浏览器上手动操作：
 
 1. 打开 https://sepolia.basescan.org
 2. 搜索 PDXMarket 地址
 3. Contract → Read Contract → `getPriceYes(0)` 查看价格
 4. Contract → Write Contract → 连接 MetaMask 进行交易
+
+## 环境变量完整清单
+
+```bash
+# ── contracts/.env ──
+PRIVATE_KEY=0x...
+BASE_SEPOLIA_RPC_URL=https://base-sepolia.g.alchemy.com/v2/KEY
+MOCK_USDC=0x...      # 部署后填
+PDX_MARKET=0x...     # 部署后填
+PDX_ORACLE=0x...     # 部署后填
+
+# ── backend/.env ──
+RPC_URL=https://base-sepolia.g.alchemy.com/v2/KEY
+CHAIN_ID=84532
+PDX_MARKET_ADDRESS=0x...
+MOCK_USDC_ADDRESS=0x...
+PDX_ORACLE_ADDRESS=0x...
+PINATA_API_KEY=...              # 可选
+PINATA_SECRET_KEY=...           # 可选
+USE_MOCK_MIROFISH=false         # false=启用真实分析
+MIROFISH_LLM_API_KEY=sk-...    # 可选，空=启发式
+MIROFISH_LLM_MODEL=gpt-4o-mini
+
+# ── frontend/.env.local ──
+VITE_CHAIN=testnet
+VITE_RPC_URL=https://base-sepolia.g.alchemy.com/v2/KEY
+VITE_PDX_MARKET_ADDRESS=0x...
+VITE_MOCK_USDC_ADDRESS=0x...
+```
