@@ -1,9 +1,12 @@
+import logging
 import time
 from web3 import Web3
 from eth_account import Account
 from app.config import settings
 from app.utils.abi_loader import load_abi
 from app.models.schemas import MarketResponse, MarketTrade, EvidenceResponse, UserPosition, UserTransaction
+
+logger = logging.getLogger("blockchain")
 
 # In-memory storage for off-chain market metadata (MVP)
 _market_categories: dict[int, str] = {}  # market_id -> category
@@ -60,6 +63,50 @@ class BlockchainService:
                 abi=abi,
             )
         return self._oracle_contract
+
+    def _get_logs(self, event, argument_filters=None):
+        """Get event logs with chunked queries to handle RPC block range limits.
+
+        On public/testnet RPCs, querying from block 0 to latest often exceeds
+        the provider's max block range (typically 2000-10000 blocks). This
+        method queries in chunks to avoid that limit.
+        """
+        from_block = settings.deploy_block or 0
+        try:
+            latest = self.w3.eth.block_number
+        except Exception:
+            return []
+
+        # If range is small enough (local anvil, or recent deploy), query directly
+        if latest - from_block < 5000:
+            try:
+                return event.get_logs(
+                    argument_filters=argument_filters,
+                    fromBlock=from_block,
+                    toBlock="latest",
+                )
+            except Exception as e:
+                logger.warning("Direct log query failed: %s", e)
+                return []
+
+        # Chunked query for large block ranges
+        chunk_size = 5000
+        all_logs = []
+        current = from_block
+        while current <= latest:
+            to_block = min(current + chunk_size - 1, latest)
+            try:
+                logs = event.get_logs(
+                    argument_filters=argument_filters,
+                    fromBlock=current,
+                    toBlock=to_block,
+                )
+                all_logs.extend(logs)
+            except Exception as e:
+                logger.warning("Chunked log query failed (%d-%d): %s", current, to_block, e)
+            current = to_block + 1
+
+        return all_logs
 
     def _send_tx(self, func) -> str:
         """Build, sign, and send a contract transaction. Returns tx hash hex."""
@@ -236,9 +283,9 @@ class BlockchainService:
         trades: list[MarketTrade] = []
 
         try:
-            trade_logs = self.market_contract.events.Trade.get_logs(
+            trade_logs = self._get_logs(
+                self.market_contract.events.Trade,
                 argument_filters={"marketId": market_id},
-                fromBlock=0,
             )
             for log in trade_logs:
                 block = self.w3.eth.get_block(log["blockNumber"])
@@ -257,9 +304,9 @@ class BlockchainService:
             pass
 
         try:
-            sold_logs = self.market_contract.events.Sold.get_logs(
+            sold_logs = self._get_logs(
+                self.market_contract.events.Sold,
                 argument_filters={"marketId": market_id},
-                fromBlock=0,
             )
             for log in sold_logs:
                 block = self.w3.eth.get_block(log["blockNumber"])
@@ -340,9 +387,9 @@ class BlockchainService:
 
         try:
             # Trade events where trader == address
-            trade_logs = self.market_contract.events.Trade.get_logs(
+            trade_logs = self._get_logs(
+                self.market_contract.events.Trade,
                 argument_filters={"trader": checksum_address},
-                fromBlock=0,
             )
             for log in trade_logs:
                 block = self.w3.eth.get_block(log["blockNumber"])
@@ -365,9 +412,9 @@ class BlockchainService:
 
         try:
             # Sold events where trader == address
-            sold_logs = self.market_contract.events.Sold.get_logs(
+            sold_logs = self._get_logs(
+                self.market_contract.events.Sold,
                 argument_filters={"trader": checksum_address},
-                fromBlock=0,
             )
             for log in sold_logs:
                 block = self.w3.eth.get_block(log["blockNumber"])
@@ -388,9 +435,9 @@ class BlockchainService:
 
         try:
             # Redeemed events where user == address
-            redeemed_logs = self.market_contract.events.Redeemed.get_logs(
+            redeemed_logs = self._get_logs(
+                self.market_contract.events.Redeemed,
                 argument_filters={"user": checksum_address},
-                fromBlock=0,
             )
             for log in redeemed_logs:
                 block = self.w3.eth.get_block(log["blockNumber"])
@@ -409,9 +456,9 @@ class BlockchainService:
 
         try:
             # MarketCreated events where creator == address
-            created_logs = self.market_contract.events.MarketCreated.get_logs(
+            created_logs = self._get_logs(
+                self.market_contract.events.MarketCreated,
                 argument_filters={"creator": checksum_address},
-                fromBlock=0,
             )
             for log in created_logs:
                 block = self.w3.eth.get_block(log["blockNumber"])
@@ -431,9 +478,9 @@ class BlockchainService:
 
         try:
             # EvidenceSubmitted events where submitter == address
-            evidence_logs = self.market_contract.events.EvidenceSubmitted.get_logs(
+            evidence_logs = self._get_logs(
+                self.market_contract.events.EvidenceSubmitted,
                 argument_filters={"submitter": checksum_address},
-                fromBlock=0,
             )
             for log in evidence_logs:
                 block = self.w3.eth.get_block(log["blockNumber"])

@@ -328,12 +328,17 @@ fi
 source venv/bin/activate
 pip install -q -r requirements.txt 2>/dev/null
 
+# Get current block number as deploy_block for event queries
+DEPLOY_BLOCK=$(cast block-number --rpc-url "$RPC" 2>/dev/null || echo "0")
+info "Using deploy_block=$DEPLOY_BLOCK for event log queries"
+
 # Start backend pointing to Base Sepolia
 export RPC_URL="$BASE_SEPOLIA_RPC_URL"
 export CHAIN_ID="84532"
 export PDX_MARKET_ADDRESS="$MARKET_ADDR"
 export MOCK_USDC_ADDRESS="$USDC_ADDR"
 export PDX_ORACLE_ADDRESS="$ORACLE_ADDR"
+export DEPLOY_BLOCK="$DEPLOY_BLOCK"
 export USE_MOCK_MIROFISH="true"
 
 info "Starting backend on port 8000..."
