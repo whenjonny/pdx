@@ -52,12 +52,12 @@ export default function SellPanel({ market }: SellPanelProps) {
       const newReserveYes = reserveYes + sellAmt;
       const newReserveNo = k / newReserveYes;
       const usdcOut = reserveNo - newReserveNo;
-      estimatedUSDC = usdcOut * 0.997; // 0.3% fee
+      estimatedUSDC = usdcOut;
     } else {
       const newReserveNo = reserveNo + sellAmt;
       const newReserveYes = k / newReserveNo;
       const usdcOut = reserveYes - newReserveYes;
-      estimatedUSDC = usdcOut * 0.997;
+      estimatedUSDC = usdcOut;
     }
   }
 
@@ -173,10 +173,6 @@ export default function SellPanel({ market }: SellPanelProps) {
           <div className="flex justify-between">
             <span>Est. USDC return</span>
             <span className="text-slate-200">${(estimatedUSDC / 1e6).toFixed(4)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Fee rate</span>
-            <span className="text-slate-200">0.3%</span>
           </div>
         </div>
       )}

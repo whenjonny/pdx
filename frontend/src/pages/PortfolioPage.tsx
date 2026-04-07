@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAccount, useConnect } from 'wagmi';
 import { useUserPositions, useUserTransactions, useUserSummary } from '../hooks/usePortfolio';
-import { formatAddress } from '../lib/format';
+import { formatAddress, formatTokens, formatUSDC } from '../lib/format';
 import type { UserPosition, UserTransaction } from '../types/market';
 
 function formatRelativeTime(timestamp: number): string {
@@ -15,18 +15,6 @@ function formatRelativeTime(timestamp: number): string {
   return new Date(timestamp * 1000).toLocaleDateString();
 }
 
-function formatUsdcString(value: string): string {
-  const num = parseFloat(value);
-  if (isNaN(num)) return '$0.00';
-  return `$${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function formatBalance(value: string): string {
-  const num = parseFloat(value);
-  if (isNaN(num)) return '0.00';
-  return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
-}
-
 const TX_TYPE_CONFIG: Record<UserTransaction['type'], { label: string; color: string }> = {
   buy_yes: { label: 'Buy YES', color: 'bg-emerald-500/20 text-emerald-400' },
   buy_no: { label: 'Buy NO', color: 'bg-rose-500/20 text-rose-400' },
@@ -35,6 +23,20 @@ const TX_TYPE_CONFIG: Record<UserTransaction['type'], { label: string; color: st
   create_market: { label: 'Create Market', color: 'bg-purple-500/20 text-purple-400' },
   submit_evidence: { label: 'Evidence', color: 'bg-cyan-500/20 text-cyan-400' },
 };
+
+function formatTxAmount(tx: UserTransaction): string {
+  const d = tx.details;
+  if (tx.type === 'buy_yes' || tx.type === 'buy_no') {
+    return d.usdc_in ? `$${formatUSDC(BigInt(d.usdc_in as string))}` : '--';
+  }
+  if (tx.type === 'sell') {
+    return d.usdc_out ? `$${formatUSDC(BigInt(d.usdc_out as string))}` : '--';
+  }
+  if (tx.type === 'redeem') {
+    return d.amount ? `$${formatUSDC(BigInt(d.amount as string))}` : '--';
+  }
+  return '--';
+}
 
 function SummaryCard({ label, value }: { label: string; value: string | number }) {
   return (
@@ -93,13 +95,13 @@ function PositionsTable({ positions, isLoading }: { positions: UserPosition[] | 
                   </Link>
                 </td>
                 <td className="py-3 px-4 text-right text-emerald-400 font-mono">
-                  {formatBalance(pos.yes_balance)}
+                  {formatTokens(BigInt(pos.yes_balance))}
                 </td>
                 <td className="py-3 px-4 text-right text-rose-400 font-mono">
-                  {formatBalance(pos.no_balance)}
+                  {formatTokens(BigInt(pos.no_balance))}
                 </td>
                 <td className="py-3 px-4 text-right text-slate-200 font-mono">
-                  {formatUsdcString(pos.current_value_usdc)}
+                  {`$${formatUSDC(BigInt(pos.current_value_usdc))}`}
                 </td>
                 <td className="py-3 px-4 text-center">
                   {pos.market_resolved ? (
@@ -141,15 +143,15 @@ function PositionsTable({ positions, isLoading }: { positions: UserPosition[] | 
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div>
                 <span className="text-slate-400">YES:</span>{' '}
-                <span className="text-emerald-400 font-mono">{formatBalance(pos.yes_balance)}</span>
+                <span className="text-emerald-400 font-mono">{formatTokens(BigInt(pos.yes_balance))}</span>
               </div>
               <div>
                 <span className="text-slate-400">NO:</span>{' '}
-                <span className="text-rose-400 font-mono">{formatBalance(pos.no_balance)}</span>
+                <span className="text-rose-400 font-mono">{formatTokens(BigInt(pos.no_balance))}</span>
               </div>
               <div>
                 <span className="text-slate-400">Value:</span>{' '}
-                <span className="text-slate-200 font-mono">{formatUsdcString(pos.current_value_usdc)}</span>
+                <span className="text-slate-200 font-mono">{`$${formatUSDC(BigInt(pos.current_value_usdc))}`}</span>
               </div>
               <div>
                 <span className="text-slate-400">Status:</span>{' '}
@@ -230,7 +232,6 @@ function HistoryTable({ transactions, isLoading }: { transactions: UserTransacti
           <tbody>
             {transactions.map((tx, i) => {
               const config = TX_TYPE_CONFIG[tx.type];
-              const amount = tx.details.amount;
               return (
                 <tr
                   key={`${tx.tx_hash}-${i}`}
@@ -250,7 +251,7 @@ function HistoryTable({ transactions, isLoading }: { transactions: UserTransacti
                     </Link>
                   </td>
                   <td className="py-3 px-4 text-right font-mono text-slate-200">
-                    {amount != null ? String(amount) : '--'}
+                    {formatTxAmount(tx)}
                   </td>
                   <td className="py-3 px-4 font-mono text-slate-400 text-xs">
                     {formatAddress(tx.tx_hash)}
@@ -269,7 +270,6 @@ function HistoryTable({ transactions, isLoading }: { transactions: UserTransacti
       <div className="md:hidden space-y-3">
         {transactions.map((tx, i) => {
           const config = TX_TYPE_CONFIG[tx.type];
-          const amount = tx.details.amount;
           return (
             <div
               key={`${tx.tx_hash}-${i}`}
@@ -289,7 +289,7 @@ function HistoryTable({ transactions, isLoading }: { transactions: UserTransacti
                   Market #{tx.market_id}
                 </Link>
                 <span className="font-mono text-slate-200">
-                  {amount != null ? String(amount) : '--'}
+                  {formatTxAmount(tx)}
                 </span>
               </div>
               <div className="mt-1 text-xs font-mono text-slate-500">
@@ -337,7 +337,7 @@ export default function PortfolioPage() {
       <div className="flex flex-wrap gap-3 mb-8">
         <SummaryCard
           label="Total Value"
-          value={summaryLoading ? '...' : formatUsdcString(summary?.total_value_usdc ?? '0')}
+          value={summaryLoading ? '...' : `$${formatUSDC(BigInt(summary?.total_value_usdc ?? '0'))}`}
         />
         <SummaryCard
           label="Active Positions"

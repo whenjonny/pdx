@@ -25,6 +25,8 @@ export default function HomePage() {
   const [showCreate, setShowCreate] = useState(false);
   const [category, setCategory] = useState<string>('All');
   const [sort, setSort] = useState<string>('trending');
+  const [statusFilter, setStatusFilter] = useState<string>('active');
+  const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const debouncedSearch = useDebounce(searchInput, 300);
 
@@ -32,8 +34,12 @@ export default function HomePage() {
     ...(category !== 'All' && { category: category.toLowerCase() }),
     sort,
     ...(debouncedSearch && { search: debouncedSearch }),
-    status: 'active' as const,
-  }), [category, sort, debouncedSearch]);
+    ...(statusFilter !== 'all' && { status: statusFilter }),
+    page,
+    limit: 12,
+  }), [category, sort, debouncedSearch, statusFilter, page]);
+
+  useEffect(() => { setPage(1); }, [category, sort, debouncedSearch, statusFilter]);
 
   const { data: markets, isLoading, error } = useMarkets(params);
   const { data: stats } = usePlatformStats();
@@ -92,8 +98,8 @@ export default function HomePage() {
           ))}
         </div>
 
-        {/* Search + Sort */}
-        <div className="flex gap-2 shrink-0">
+        {/* Search + Sort + Status */}
+        <div className="flex gap-2 shrink-0 flex-wrap">
           <div className="relative">
             <input
               type="text"
@@ -121,11 +127,41 @@ export default function HomePage() {
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
+          <select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+            className="px-3 py-1.5 rounded-lg text-sm bg-slate-800/50 border border-slate-700/50 text-slate-200 focus:outline-none focus:border-blue-500/50 transition-colors cursor-pointer"
+          >
+            <option value="active">Active</option>
+            <option value="resolved">Settled</option>
+            <option value="all">All</option>
+          </select>
         </div>
       </div>
 
       {/* Market grid */}
       <MarketList markets={markets} isLoading={isLoading} error={error ?? null} />
+
+      {/* Pagination */}
+      {markets && markets.length > 0 && (
+        <div className="flex items-center justify-center gap-4 mt-6">
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="px-3 py-1.5 rounded-lg text-sm bg-slate-800/50 border border-slate-700/50 text-slate-300 disabled:opacity-30 hover:bg-slate-700/50 transition-colors"
+          >
+            Previous
+          </button>
+          <span className="text-sm text-slate-400">Page {page}</span>
+          <button
+            onClick={() => setPage(p => p + 1)}
+            disabled={markets.length < 12}
+            className="px-3 py-1.5 rounded-lg text-sm bg-slate-800/50 border border-slate-700/50 text-slate-300 disabled:opacity-30 hover:bg-slate-700/50 transition-colors"
+          >
+            Next
+          </button>
+        </div>
+      )}
 
       {/* Create modal */}
       {showCreate && <CreateMarketModal onClose={() => setShowCreate(false)} />}

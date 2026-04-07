@@ -37,6 +37,7 @@ export interface MarketFromAPI {
   priceYes: number;
   priceNo: number;
   evidenceCount: number;
+  category: string;
 }
 
 export interface Evidence {
