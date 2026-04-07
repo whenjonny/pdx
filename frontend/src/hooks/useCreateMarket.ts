@@ -56,7 +56,7 @@ export function useCreateMarket(owner: `0x${string}` | undefined) {
   });
 
   // Read allowance
-  const { data: allowance, refetch: refetchAllowance } = useReadContract({
+  const { refetch: refetchAllowance } = useReadContract({
     address: MOCK_USDC_ADDRESS,
     abi: MOCK_USDC_ABI,
     functionName: 'allowance',
@@ -76,9 +76,11 @@ export function useCreateMarket(owner: `0x${string}` | undefined) {
   const { writeContract: writeCreate, data: createHash, isPending: isCreatePending, error: createError, reset: resetCreate } = useWriteContract();
   const { isLoading: isCreateConfirming, isSuccess: isCreateSuccess, data: createReceipt } = useWaitForTransactionReceipt({ hash: createHash });
 
-  function doApprove(params: PendingParams) {
-    const sufficient = allowance !== undefined && (allowance as bigint) >= params.liquidityRaw;
-    if (sufficient) {
+  async function doApprove(params: PendingParams) {
+    // Always refetch allowance from chain before deciding — cached value may be stale
+    const { data: freshAllowance } = await refetchAllowance();
+    const currentAllowance = (freshAllowance as bigint | undefined) ?? 0n;
+    if (currentAllowance >= params.liquidityRaw) {
       doCreate(params);
     } else {
       writeApprove({
@@ -102,8 +104,7 @@ export function useCreateMarket(owner: `0x${string}` | undefined) {
   // After mint confirmed → proceed to approve
   useEffect(() => {
     if (!isMintSuccess || !pendingParams) return;
-    refetchBalance();
-    doApprove(pendingParams);
+    refetchBalance().then(() => doApprove(pendingParams));
   }, [isMintSuccess]);
 
   // After approve confirmed → proceed to create
@@ -129,7 +130,7 @@ export function useCreateMarket(owner: `0x${string}` | undefined) {
     queryClient.invalidateQueries({ queryKey: ['markets'] });
   }, [isCreateSuccess, createReceipt]);
 
-  function create(question: string, initialLiquidity: number, deadlineDays: number, _category?: string, _resolutionSource?: string) {
+  async function create(question: string, initialLiquidity: number, deadlineDays: number, _category?: string, _resolutionSource?: string) {
     if (!owner) return;
     const raw = parseUnits(String(initialLiquidity), USDC_DECIMALS);
     const deadline = BigInt(Math.floor(Date.now() / 1000) + deadlineDays * 86400);
@@ -141,7 +142,9 @@ export function useCreateMarket(owner: `0x${string}` | undefined) {
     resetApprove();
     resetCreate();
 
-    const currentBalance = (balance as bigint | undefined) ?? 0n;
+    // Always refetch balance from chain to avoid stale cache
+    const { data: freshBalance } = await refetchBalance();
+    const currentBalance = (freshBalance as bigint | undefined) ?? 0n;
     if (currentBalance < raw) {
       // Mint the shortfall (+ small buffer)
       const mintAmount = raw - currentBalance + parseUnits('100', USDC_DECIMALS);
