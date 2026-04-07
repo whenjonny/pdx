@@ -40,6 +40,7 @@ class MockMiroFishClient:
             confidence=confidence,
             reasoning=reasoning,
             source="MiroFish Mock",
+            updated_at=int(time.time()),
         )
 
 

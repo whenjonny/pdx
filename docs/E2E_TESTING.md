@@ -164,18 +164,33 @@ curl -s http://localhost:8000/api/predictions/0 | jq
 **期望输出：**
 ```json
 {
-  "probability": 0.5234,
-  "confidence": "LOW",
-  "reasoning": "Insufficient evidence to form a strong opinion...",
-  "lastUpdated": "2026-04-06T..."
+  "market_id": 0,
+  "probability_yes": 0.5234,
+  "probability_no": 0.4766,
+  "confidence": 0.35,
+  "reasoning": "Insufficient evidence to form a strong opinion. Market is roughly balanced.",
+  "source": "MiroFish Mock",
+  "amm_price_yes": 0.5,
+  "updated_at": 0
 }
 ```
 
-**检查点：** 使用 Mock 模式时，`probability` 应在当前 AMM 价格附近（±0.05 随机噪声）。`confidence` 为 `LOW`/`MEDIUM`/`HIGH`。
+**检查点：**
+- 使用 Mock 模式时，`probability_yes` 应在当前 AMM 价格附近（±0.05 随机噪声），`probability_yes + probability_no = 1`
+- `confidence` 为 0~1 的数值（非字符串）
+- `updated_at` 为 Unix 时间戳（整数），例如 `1744000000`
 
 ---
 
 ## Step 5: 使用 cast 进行链上交易
+
+> **前提：** 执行本节所有命令前，必须先在当前终端设置合约地址环境变量（Step 0 部署完成后记下的地址）：
+> ```bash
+> export USDC=0x5FbDB2315678afecb367f032d93F642f64180aa3
+> export MARKET=0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+> export ORACLE=0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
+> ```
+> 若未设置，`cast call $USDC ...` 会因变量为空而报 `odd number of digits` 错误。
 
 以下使用 Anvil 测试账户进行交易。Anvil 预置了 10 个账户：
 
@@ -277,11 +292,11 @@ cast send $MARKET "buyNo(uint256,uint256)" 0 2000000000 \
 curl -s -X POST http://localhost:8000/api/evidence/upload \
   -H "Content-Type: application/json" \
   -d '{
-    "marketId": 0,
-    "direction": "YES",
-    "confidence": 0.85,
-    "sources": [{"url": "https://example.com/btc-analysis", "title": "BTC Technical Analysis"}],
-    "analysis": "Based on historical halving cycles and current ETF inflows, BTC is likely to exceed 100K."
+    "market_id": 0,
+    "title": "BTC Technical Analysis",
+    "content": "Based on historical halving cycles and current ETF inflows, BTC is likely to exceed 100K.",
+    "source_url": "https://example.com/btc-analysis",
+    "direction": "YES"
   }' | jq
 ```
 
@@ -435,10 +450,10 @@ pip install -e .
 ```bash
 RPC_URL=http://localhost:8545 \
 PRIVATE_KEY=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d \
-PDX_MARKET_ADDRESS=$MARKET \
-MOCK_USDC_ADDRESS=$USDC \
+PDX_MARKET=$MARKET \
+MOCK_USDC=$USDC \
 BACKEND_URL=http://localhost:8000 \
-python examples/simple_trade.py
+python3 examples/simple_trade.py
 ```
 
 ### 运行完整 Agent 流程
@@ -446,10 +461,10 @@ python examples/simple_trade.py
 ```bash
 RPC_URL=http://localhost:8545 \
 PRIVATE_KEY=0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a \
-PDX_MARKET_ADDRESS=$MARKET \
-MOCK_USDC_ADDRESS=$USDC \
+PDX_MARKET=$MARKET \
+MOCK_USDC=$USDC \
 BACKEND_URL=http://localhost:8000 \
-python examples/agent_trade.py
+python3 examples/agent_trade.py
 ```
 
 **期望：** 脚本完成 mint → approve → evidence → trade → 打印持仓。

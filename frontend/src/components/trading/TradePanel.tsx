@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
 import { useBuyYes, useBuyNo, useApproveUSDC, useAllowance } from '../../hooks/useTrading';
 import { useUSDCBalance } from '../../hooks/useMockUSDC';
+import { useHasEvidence } from '../../hooks/useEvidence';
 import { formatUSDC, parseUSDC } from '../../lib/format';
 import type { MarketFromAPI } from '../../types/market';
 
@@ -15,6 +16,9 @@ export default function TradePanel({ market }: TradePanelProps) {
   const { address } = useAccount();
   const { data: balance } = useUSDCBalance(address);
   const { data: allowance } = useAllowance(address);
+  const { data: hasEvidence } = useHasEvidence(market.id, address);
+  const feeRate = hasEvidence ? 0.001 : 0.003;
+  const feeLabel = hasEvidence ? '0.1%' : '0.3%';
   const { approve, isPending: isApproving, isConfirming: isApproveConfirming, isSuccess: approveSuccess } = useApproveUSDC();
   const buyYes = useBuyYes();
   const buyNo = useBuyNo();
@@ -54,7 +58,7 @@ export default function TradePanel({ market }: TradePanelProps) {
   const reserveYes = Number(market.reserveYes);
   const reserveNo = Number(market.reserveNo);
   const k = reserveYes * reserveNo;
-  const netInput = Number(parsedAmount) * 0.997; // 0.3% fee
+  const netInput = Number(parsedAmount) * (1 - feeRate);
   let estimatedTokens = 0;
   let priceImpact = 0;
   if (side === 'YES' && netInput > 0) {
@@ -76,7 +80,7 @@ export default function TradePanel({ market }: TradePanelProps) {
     <div className="space-y-4">
       {(isLocked || isExpired || market.resolved) && (
         <div className="p-3 rounded-lg bg-amber-900/20 border border-amber-800/30 text-amber-400 text-sm">
-          {market.resolved ? 'Market settled -- trading is closed. Redeem your tokens below.' : isExpired ? 'Market expired' : 'Trading locked (30min before deadline)'}
+          {market.resolved ? 'Market settled -- trading is closed.' : isExpired ? 'Market expired' : 'Trading locked (30min before deadline)'}
         </div>
       )}
 
@@ -144,7 +148,7 @@ export default function TradePanel({ market }: TradePanelProps) {
           </div>
           <div className="flex justify-between text-slate-400">
             <span>Fee</span>
-            <span className="text-slate-200">0.3%</span>
+            <span className={hasEvidence ? 'text-emerald-400' : 'text-slate-200'}>{feeLabel}</span>
           </div>
         </div>
       )}
