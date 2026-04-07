@@ -71,11 +71,15 @@ class BlockchainService:
         the provider's max block range (typically 2000-10000 blocks). This
         method queries in chunks to avoid that limit.
         """
-        from_block = settings.deploy_block or 0
         try:
             latest = self.w3.eth.block_number
         except Exception:
             return []
+
+        from_block = settings.deploy_block
+        if from_block == 0 and settings.chain_id != 31337:
+            # On testnet/mainnet without explicit deploy_block, only scan recent history
+            from_block = max(0, latest - 50000)
 
         # If range is small enough (local anvil, or recent deploy), query directly
         if latest - from_block < 5000:

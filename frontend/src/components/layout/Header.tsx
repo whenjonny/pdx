@@ -20,6 +20,7 @@ export default function Header() {
             <Link to="/" className="text-slate-300 hover:text-white transition-colors">Markets</Link>
             <Link to="/portfolio" className="text-slate-300 hover:text-white transition-colors">Portfolio</Link>
             <Link to="/faucet" className="text-slate-300 hover:text-white transition-colors">Faucet</Link>
+            <Link to="/oracle" className="text-slate-300 hover:text-white transition-colors">Oracle</Link>
           </nav>
         </div>
         <div className="flex items-center gap-3">
