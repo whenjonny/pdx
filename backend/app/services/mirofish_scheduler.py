@@ -45,11 +45,20 @@ class MiroFishScheduler:
         if not market:
             return None
 
+        from app.services.ipfs import ipfs_service
+
         evidence = blockchain_service.get_evidence_list(market_id)
-        evidence_dicts = [
-            {"summary": e.summary, "timestamp": e.timestamp}
-            for e in evidence
-        ]
+        evidence_dicts = []
+        for e in evidence:
+            ev_dict = {"summary": e.summary, "timestamp": e.timestamp}
+            # Try to fetch full content from IPFS
+            ipfs_data = ipfs_service.fetch_by_hash(e.ipfsHash)
+            if ipfs_data:
+                ev_dict["title"] = ipfs_data.get("title", "")
+                ev_dict["content"] = ipfs_data.get("content", "")
+                ev_dict["direction"] = ipfs_data.get("direction", "")
+                ev_dict["source_url"] = ipfs_data.get("sourceUrl", "")
+            evidence_dicts.append(ev_dict)
 
         result = await analyze_market(market_id, market.question, evidence_dicts)
 

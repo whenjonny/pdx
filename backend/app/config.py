@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     # IPFS / Pinata (optional for MVP)
     pinata_api_key: str = ""
     pinata_secret_key: str = ""
+    pinata_gateway_url: str = "https://gateway.pinata.cloud/ipfs"
 
     # MiroFish
     mirofish_url: str = "http://localhost:5001"

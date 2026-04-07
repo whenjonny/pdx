@@ -42,7 +42,20 @@ async def _llm_analyze(
 
     evidence_text = ""
     for i, ev in enumerate(evidence_list, 1):
-        evidence_text += f"\n{i}. [{ev.get('timestamp', 'unknown')}] {ev.get('summary', '')}"
+        direction = ev.get("direction", "")
+        title = ev.get("title", "")
+        content = ev.get("content", "")
+        source_url = ev.get("source_url", "")
+        summary = ev.get("summary", "")
+
+        # Use full content if available, otherwise fall back to summary
+        if content:
+            ev_line = f"\n{i}. [{direction}] {title}: {content}"
+            if source_url:
+                ev_line += f" (source: {source_url})"
+        else:
+            ev_line = f"\n{i}. {summary}"
+        evidence_text += ev_line
 
     if not evidence_text:
         evidence_text = "\nNo evidence submitted yet."
@@ -51,7 +64,7 @@ async def _llm_analyze(
 
 Market Question: {question}
 
-Submitted Evidence:{evidence_text}
+Submitted Evidence (each prefixed with [YES] or [NO] indicating the submitter's stance):{evidence_text}
 
 Based on the evidence above, provide your analysis as JSON:
 {{
@@ -102,7 +115,7 @@ def _heuristic_analyze(
             "source": "MiroFish Heuristic",
         }
 
-    # Simple keyword-based direction detection from summaries
+    # Use explicit direction from IPFS when available, fall back to keyword detection
     yes_weight = 0.0
     no_weight = 0.0
     now = time.time()
@@ -111,24 +124,29 @@ def _heuristic_analyze(
     negative_keywords = ["no", "won't", "unlikely", "deny", "oppose", "negative", "disagree", "fail", "reject", "decrease", "fall", "lose"]
 
     for ev in evidence_list:
-        summary_lower = ev.get("summary", "").lower()
         ts = ev.get("timestamp", 0)
-
         # Recency weight: more recent evidence has more weight
         age_days = max(0, (now - ts) / 86400) if ts > 0 else 30
         recency = 1.0 / (1.0 + age_days * 0.1)
 
-        yes_score = sum(1 for kw in positive_keywords if kw in summary_lower)
-        no_score = sum(1 for kw in negative_keywords if kw in summary_lower)
-
-        if yes_score > no_score:
+        direction = ev.get("direction", "").upper()
+        if direction == "YES":
             yes_weight += recency
-        elif no_score > yes_score:
+        elif direction == "NO":
             no_weight += recency
         else:
-            # Neutral evidence — slight push towards both
-            yes_weight += recency * 0.5
-            no_weight += recency * 0.5
+            # No explicit direction — fall back to keyword analysis
+            text = (ev.get("content", "") or ev.get("summary", "")).lower()
+            yes_score = sum(1 for kw in positive_keywords if kw in text)
+            no_score = sum(1 for kw in negative_keywords if kw in text)
+
+            if yes_score > no_score:
+                yes_weight += recency
+            elif no_score > yes_score:
+                no_weight += recency
+            else:
+                yes_weight += recency * 0.5
+                no_weight += recency * 0.5
 
     total = yes_weight + no_weight
     if total == 0:

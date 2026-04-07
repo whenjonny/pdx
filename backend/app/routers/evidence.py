@@ -33,3 +33,18 @@ def upload_evidence(req: EvidenceUploadRequest):
         return EvidenceUploadResponse(cid=cid, evidenceHash=evidence_hash)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"IPFS upload failed: {e}")
+
+
+@router.get("/{market_id}/{evidence_index}/content")
+def get_evidence_content(market_id: int, evidence_index: int):
+    """Fetch full evidence content from IPFS."""
+    evidence_list = blockchain_service.get_evidence_list(market_id)
+    if evidence_index < 0 or evidence_index >= len(evidence_list):
+        raise HTTPException(status_code=404, detail="Evidence not found")
+
+    ev = evidence_list[evidence_index]
+    content = ipfs_service.fetch_by_hash(ev.ipfsHash)
+    if content is None:
+        raise HTTPException(status_code=404, detail="IPFS content not available")
+
+    return content
