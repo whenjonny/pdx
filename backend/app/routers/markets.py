@@ -8,6 +8,7 @@ from app.models.schemas import (
     CreateMarketRequest, CreateMarketResponse,
     MintUSDCRequest, MintUSDCResponse,
     SettleMarketRequest, SettleMarketResponse,
+    SetMarketMetadataRequest,
 )
 from app.services.blockchain import blockchain_service
 
@@ -112,6 +113,20 @@ def create_market(req: CreateMarketRequest):
         return CreateMarketResponse(**result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/markets/{market_id}/metadata")
+def set_market_metadata(market_id: int, req: SetMarketMetadataRequest):
+    """Set off-chain metadata (category, resolution source) for a market."""
+    market = blockchain_service.get_market(market_id)
+    if not market:
+        raise HTTPException(status_code=404, detail="Market not found")
+    blockchain_service.set_market_metadata(
+        market_id=market_id,
+        category=req.category,
+        resolution_source=req.resolution_source,
+    )
+    return {"ok": True}
 
 
 @router.post("/markets/settle", response_model=SettleMarketResponse)

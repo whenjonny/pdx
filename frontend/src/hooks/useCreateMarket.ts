@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi';
 import { parseUnits, parseEventLogs } from 'viem';
 import { useQueryClient } from '@tanstack/react-query';
+import { setMarketMetadata } from '../lib/api';
 import {
   PDX_MARKET_ADDRESS,
   PDX_MARKET_ABI,
@@ -37,6 +38,8 @@ interface PendingParams {
   question: string;
   liquidityRaw: bigint;
   deadline: bigint;
+  category: string;
+  resolutionSource: string;
 }
 
 export type CreateMarketStep = 'idle' | 'minting' | 'approving' | 'creating' | 'success';
@@ -114,9 +117,10 @@ export function useCreateMarket(owner: `0x${string}` | undefined) {
     doCreate(pendingParams);
   }, [isApproveSuccess]);
 
-  // After create confirmed → parse market ID
+  // After create confirmed → parse market ID and store metadata
   useEffect(() => {
-    if (!isCreateSuccess || !createReceipt) return;
+    if (!isCreateSuccess || !createReceipt || !pendingParams) return;
+    let marketId: number | null = null;
     try {
       const logs = parseEventLogs({
         abi: PDX_MARKET_ABI as Parameters<typeof parseEventLogs>[0]['abi'],
@@ -124,17 +128,32 @@ export function useCreateMarket(owner: `0x${string}` | undefined) {
         logs: createReceipt.logs,
       });
       if (logs.length > 0) {
-        setCreatedMarketId(Number((logs[0] as { args: { marketId: bigint } }).args.marketId));
+        marketId = Number((logs[0] as { args: { marketId: bigint } }).args.marketId);
+        setCreatedMarketId(marketId);
       }
     } catch { /* market ID unknown */ }
+
+    // Store category + resolution source on backend
+    if (marketId !== null) {
+      setMarketMetadata(marketId, pendingParams.category, pendingParams.resolutionSource).catch(() => {
+        // Non-critical: metadata storage failed, market still created on-chain
+      });
+    }
+
     queryClient.invalidateQueries({ queryKey: ['markets'] });
   }, [isCreateSuccess, createReceipt]);
 
-  async function create(question: string, initialLiquidity: number, deadlineDays: number, _category?: string, _resolutionSource?: string) {
+  async function create(question: string, initialLiquidity: number, deadlineDays: number, category?: string, resolutionSource?: string) {
     if (!owner) return;
     const raw = parseUnits(String(initialLiquidity), USDC_DECIMALS);
     const deadline = BigInt(Math.floor(Date.now() / 1000) + deadlineDays * 86400);
-    const params: PendingParams = { question, liquidityRaw: raw, deadline };
+    const params: PendingParams = {
+      question,
+      liquidityRaw: raw,
+      deadline,
+      category: category || 'general',
+      resolutionSource: resolutionSource || '',
+    };
 
     setPendingParams(params);
     setCreatedMarketId(null);

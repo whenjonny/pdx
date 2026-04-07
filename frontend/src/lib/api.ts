@@ -70,6 +70,15 @@ export async function createMarket(data: {
   return post('/markets', data);
 }
 
+export async function setMarketMetadata(marketId: number, category: string, resolutionSource: string = ''): Promise<void> {
+  const res = await fetch(`${BASE}/markets/${marketId}/metadata`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ category, resolution_source: resolutionSource }),
+  });
+  if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+}
+
 export async function fetchMarketTrades(marketId: number, limit: number = 50): Promise<MarketTrade[]> {
   return get<MarketTrade[]>(`/markets/${marketId}/trades?limit=${limit}`);
 }

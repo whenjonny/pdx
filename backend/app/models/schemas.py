@@ -87,6 +87,11 @@ class CreateMarketResponse(BaseModel):
     tx_hash: str
 
 
+class SetMarketMetadataRequest(BaseModel):
+    category: str = "general"
+    resolution_source: str = ""
+
+
 class MintUSDCRequest(BaseModel):
     to: str  # address
     amount: float = 10000.0  # USDC
