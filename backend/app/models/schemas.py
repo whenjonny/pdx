@@ -67,6 +67,8 @@ class PredictionResponse(BaseModel):
     confidence: float  # 0.0 - 1.0
     reasoning: str
     source: str
+    amm_price_yes: float = 0.0
+    updated_at: int = 0
 
 
 class CreateMarketRequest(BaseModel):

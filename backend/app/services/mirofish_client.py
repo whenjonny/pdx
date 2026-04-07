@@ -1,6 +1,6 @@
 import random
+import time
 
-import httpx
 from app.config import settings
 from app.models.schemas import PredictionResponse
 
@@ -43,42 +43,74 @@ class MockMiroFishClient:
         )
 
 
-class MiroFishClient:
-    """Real MiroFish client — calls the MiroFish Flask API."""
+class ScheduledMiroFishClient:
+    """Reads predictions from the MiroFish scheduler's in-memory cache."""
 
-    def __init__(self):
-        self.base_url = settings.mirofish_url
+    async def get_prediction_async(self, market_id: int, current_yes_price: float = 0.5) -> PredictionResponse:
+        from app.services.mirofish_scheduler import mirofish_scheduler
+
+        # If cache is stale or missing, trigger on-demand analysis
+        if mirofish_scheduler.is_stale(market_id):
+            await mirofish_scheduler.analyze_single_market(market_id)
+
+        cached = mirofish_scheduler.get_cached_prediction(market_id)
+        if cached:
+            return PredictionResponse(
+                market_id=cached.market_id,
+                probability_yes=cached.probability_yes,
+                probability_no=cached.probability_no,
+                confidence=cached.confidence,
+                reasoning=cached.reasoning,
+                source=cached.source,
+                amm_price_yes=current_yes_price,
+                updated_at=cached.updated_at,
+            )
+
+        # Fallback if analysis failed
+        return PredictionResponse(
+            market_id=market_id,
+            probability_yes=0.5,
+            probability_no=0.5,
+            confidence=0.0,
+            reasoning="MiroFish analysis pending...",
+            source="MiroFish",
+            amm_price_yes=current_yes_price,
+            updated_at=int(time.time()),
+        )
 
     def get_prediction(self, market_id: int, current_yes_price: float = 0.5) -> PredictionResponse:
-        try:
-            # Check if MiroFish is running
-            resp = httpx.get(f"{self.base_url}/api/report/status", timeout=5)
-            if resp.status_code == 200:
-                data = resp.json()
-                # Extract probability from report if available
-                prob = float(data.get("probability", current_yes_price))
-                confidence_map = {"HIGH": 0.85, "MEDIUM": 0.60, "LOW": 0.35}
-                raw_conf = data.get("confidence", "MEDIUM")
-                confidence = confidence_map.get(raw_conf, 0.60) if isinstance(raw_conf, str) else float(raw_conf)
-                return PredictionResponse(
-                    market_id=market_id,
-                    probability_yes=round(prob, 4),
-                    probability_no=round(1 - prob, 4),
-                    confidence=confidence,
-                    reasoning=data.get("summary", "MiroFish analysis in progress..."),
-                    source="MiroFish",
-                )
-        except Exception:
-            pass
+        """Sync wrapper — reads from cache only (no on-demand)."""
+        from app.services.mirofish_scheduler import mirofish_scheduler
 
-        # Fallback to mock if MiroFish unavailable
-        return MockMiroFishClient().get_prediction(market_id, current_yes_price)
+        cached = mirofish_scheduler.get_cached_prediction(market_id)
+        if cached:
+            return PredictionResponse(
+                market_id=cached.market_id,
+                probability_yes=cached.probability_yes,
+                probability_no=cached.probability_no,
+                confidence=cached.confidence,
+                reasoning=cached.reasoning,
+                source=cached.source,
+                amm_price_yes=current_yes_price,
+                updated_at=cached.updated_at,
+            )
+
+        return PredictionResponse(
+            market_id=market_id,
+            probability_yes=0.5,
+            probability_no=0.5,
+            confidence=0.0,
+            reasoning="MiroFish analysis pending...",
+            source="MiroFish",
+            amm_price_yes=current_yes_price,
+            updated_at=int(time.time()),
+        )
 
 
 def get_mirofish_client():
     if settings.use_mock_mirofish:
         return MockMiroFishClient()
-    return MiroFishClient()
+    return ScheduledMiroFishClient()
 
 
 mirofish_client = get_mirofish_client()

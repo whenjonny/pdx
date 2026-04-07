@@ -62,6 +62,7 @@ export default function MarketCard({ market, isOwner }: MarketCardProps) {
         <div>
           <span className="text-3xl font-bold text-emerald-400">{yesPercent}%</span>
           <span className="text-sm text-slate-500 ml-1.5">chance</span>
+          <div className="text-[10px] text-slate-600 mt-0.5">Market Price</div>
         </div>
         <div className="text-right">
           <div className="text-sm font-medium text-slate-300">

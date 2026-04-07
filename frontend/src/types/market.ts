@@ -53,6 +53,8 @@ export interface Prediction {
   confidence: number;
   reasoning: string;
   source: string;
+  amm_price_yes: number;
+  updated_at: number;
 }
 
 export interface TradeEstimate {

@@ -71,15 +71,18 @@ export default function MarketPage() {
         </div>
       </div>
 
-      {/* Large probability display */}
-      <div className="mb-8 flex gap-4">
-        <div className="flex-1 rounded-xl bg-emerald-900/20 border border-emerald-800/30 p-5 text-center">
-          <div className="text-4xl font-bold text-emerald-400">{yesPercent}%</div>
-          <div className="text-sm text-emerald-400/70 mt-1 font-medium">YES</div>
-        </div>
-        <div className="flex-1 rounded-xl bg-rose-900/20 border border-rose-800/30 p-5 text-center">
-          <div className="text-4xl font-bold text-rose-400">{noPercent}%</div>
-          <div className="text-sm text-rose-400/70 mt-1 font-medium">NO</div>
+      {/* Large probability display — AMM real transaction price */}
+      <div className="mb-8">
+        <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Market Price</h3>
+        <div className="flex gap-4">
+          <div className="flex-1 rounded-xl bg-emerald-900/20 border border-emerald-800/30 p-5 text-center">
+            <div className="text-4xl font-bold text-emerald-400">{yesPercent}%</div>
+            <div className="text-sm text-emerald-400/70 mt-1 font-medium">YES</div>
+          </div>
+          <div className="flex-1 rounded-xl bg-rose-900/20 border border-rose-800/30 p-5 text-center">
+            <div className="text-4xl font-bold text-rose-400">{noPercent}%</div>
+            <div className="text-sm text-rose-400/70 mt-1 font-medium">NO</div>
+          </div>
         </div>
       </div>
 
@@ -115,7 +118,7 @@ export default function MarketPage() {
         {/* Right column (1/3) */}
         <div className="space-y-4">
           <PositionDisplay market={market} />
-          <MiroFishProbability marketId={marketId} />
+          <MiroFishProbability marketId={marketId} ammPriceYes={market.priceYes} />
           <div className="rounded-xl bg-slate-800/50 border border-slate-700/50 p-5">
             <h3 className="text-sm font-medium text-slate-300 mb-4">
               Evidence{market.evidenceCount > 0 ? ` \u00B7 ${market.evidenceCount} submitted` : ''}

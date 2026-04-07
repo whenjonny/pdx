@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     mirofish_url: str = "http://localhost:5001"
     use_mock_mirofish: bool = True  # Use mock by default
 
+    # MiroFish LLM settings
+    mirofish_llm_api_key: str = ""  # empty = heuristic mode
+    mirofish_llm_base_url: str = "https://api.openai.com/v1"
+    mirofish_llm_model: str = "gpt-4o-mini"
+    mirofish_interval_seconds: int = 300  # 5 minutes
+
     # Server
     cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
 
