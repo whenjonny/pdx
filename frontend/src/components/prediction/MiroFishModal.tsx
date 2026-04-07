@@ -1,5 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePrediction } from '../../hooks/usePrediction';
+import { useEvidenceList } from '../../hooks/useEvidence';
+import EvidenceNetworkGraph from './EvidenceNetworkGraph';
 
 interface MiroFishModalProps {
   marketId: number;
@@ -93,9 +95,13 @@ function ConfidenceBar({ value }: { value: number }) {
   );
 }
 
+type ModalTab = 'analysis' | 'network';
+
 export default function MiroFishModal({ marketId, ammPriceYes, onClose }: MiroFishModalProps) {
   const { data: prediction, isLoading } = usePrediction(marketId);
+  const { data: evidence } = useEvidenceList(marketId);
   const backdropRef = useRef<HTMLDivElement>(null);
+  const [activeTab, setActiveTab] = useState<ModalTab>('analysis');
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -159,8 +165,31 @@ export default function MiroFishModal({ marketId, ammPriceYes, onClose }: MiroFi
             </button>
           </div>
 
+          {/* Tab bar */}
+          <div className="flex border-b border-slate-800 mx-6">
+            {([
+              { key: 'analysis' as ModalTab, label: 'Analysis', icon: 'M9 19v-6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2zm0 0V9a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v10m-6 0a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2m0 0V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2z' },
+              { key: 'network' as ModalTab, label: 'Network', icon: 'M12 5 L5 19 M12 5 L19 19 M5 19 L19 19' },
+            ]).map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium transition-colors border-b-2 -mb-px ${
+                  activeTab === tab.key
+                    ? 'text-indigo-400 border-indigo-400'
+                    : 'text-slate-500 border-transparent hover:text-slate-300'
+                }`}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d={tab.icon} />
+                </svg>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
           {/* Body */}
-          <div className="px-6 pb-6">
+          <div className="px-6 pb-6 pt-4">
             {isLoading ? (
               <div className="flex flex-col items-center py-10">
                 <div className="w-12 h-12 rounded-full border-2 border-indigo-500/30 border-t-indigo-500 animate-spin" />
@@ -170,7 +199,7 @@ export default function MiroFishModal({ marketId, ammPriceYes, onClose }: MiroFi
               <div className="text-center py-10">
                 <p className="text-slate-400">Prediction unavailable</p>
               </div>
-            ) : (
+            ) : activeTab === 'analysis' ? (
               <div className="space-y-5">
                 {/* Gauge + Source badge */}
                 <div className="flex flex-col items-center pt-2">
@@ -218,6 +247,21 @@ export default function MiroFishModal({ marketId, ammPriceYes, onClose }: MiroFi
                   {updatedAt && (
                     <span className="text-[10px] text-slate-600">Updated {updatedAt}</span>
                   )}
+                </div>
+              </div>
+            ) : (
+              /* Network tab */
+              <div className="space-y-4">
+                <EvidenceNetworkGraph
+                  evidence={evidence ?? []}
+                  prediction={prediction}
+                  ammPriceYes={ammPriceYes}
+                />
+                <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+                  <span className="text-[10px] text-slate-600 italic">
+                    {evidence?.length ?? 0} evidence node{(evidence?.length ?? 0) !== 1 ? 's' : ''}
+                  </span>
+                  <span className="text-[10px] text-slate-600">Hover nodes for details</span>
                 </div>
               </div>
             )}
