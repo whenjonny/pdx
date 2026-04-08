@@ -13,6 +13,10 @@ from app.services import database as db
 class BlockchainService:
     def __init__(self):
         self.w3 = Web3(Web3.HTTPProvider(settings.rpc_url))
+        # Separate w3 for eth_getLogs, used when logs_rpc_url is configured
+        # (e.g., public RPC that allows larger block ranges than Alchemy free tier)
+        logs_url = settings.logs_rpc_url or settings.rpc_url
+        self._logs_w3 = Web3(Web3.HTTPProvider(logs_url)) if logs_url != settings.rpc_url else self.w3
         self._market_contract = None
         self._usdc_contract = None
         self._oracle_contract = None
@@ -61,12 +65,17 @@ class BlockchainService:
             )
         return self._oracle_contract
 
+    def _event_signature(self, event_abi: dict) -> str:
+        """Build canonical event signature for keccak topic computation."""
+        types = ",".join(inp["type"] for inp in event_abi.get("inputs", []))
+        return f"{event_abi['name']}({types})"
+
     def _get_logs(self, event, argument_filters=None):
         """Get event logs with chunked queries to handle RPC block range limits.
 
-        On public/testnet RPCs, querying from block 0 to latest often exceeds
-        the provider's max block range (typically 2000-10000 blocks). This
-        method queries in chunks to avoid that limit.
+        When logs_rpc_url is configured (e.g., a public endpoint), uses _logs_w3
+        with raw eth.get_logs() calls to bypass provider block-range restrictions
+        (e.g., Alchemy free tier limits eth_getLogs to 10 blocks per request).
         """
         try:
             latest = self.w3.eth.block_number
@@ -75,10 +84,36 @@ class BlockchainService:
 
         from_block = settings.deploy_block
         if from_block == 0 and settings.chain_id != 31337:
-            # On testnet/mainnet without explicit deploy_block, only scan recent history
             from_block = max(0, latest - 50000)
 
-        # If range is small enough (local anvil, or recent deploy), query directly
+        # ── Path A: separate logs RPC (public endpoint, no block-range limit) ──
+        if self._logs_w3 is not self.w3:
+            topic = "0x" + self._logs_w3.keccak(
+                text=self._event_signature(event.abi)
+            ).hex()
+            base_filter: dict = {"address": event.address, "topics": [topic]}
+            all_logs: list = []
+            chunk_size = 10_000
+            current = from_block
+            while current <= latest:
+                to_block = min(current + chunk_size - 1, latest)
+                try:
+                    raw = self._logs_w3.eth.get_logs(
+                        {**base_filter, "fromBlock": current, "toBlock": to_block}
+                    )
+                    processed = [event.process_log(r) for r in raw]
+                    if argument_filters:
+                        processed = [
+                            l for l in processed
+                            if all(l["args"].get(k) == v for k, v in argument_filters.items())
+                        ]
+                    all_logs.extend(processed)
+                except Exception as e:
+                    logger.warning("Chunked log query failed (%d-%d): %s", current, to_block, e)
+                current = to_block + 1
+            return all_logs
+
+        # ── Path B: same RPC, small range → direct query ──
         if latest - from_block < 5000:
             try:
                 return event.get_logs(
@@ -90,8 +125,8 @@ class BlockchainService:
                 logger.warning("Direct log query failed: %s", e)
                 return []
 
-        # Chunked query for large block ranges
-        chunk_size = 5000
+        # ── Path B: same RPC, large range → chunked ──
+        chunk_size = 2000
         all_logs = []
         current = from_block
         while current <= latest:
@@ -106,7 +141,6 @@ class BlockchainService:
             except Exception as e:
                 logger.warning("Chunked log query failed (%d-%d): %s", current, to_block, e)
             current = to_block + 1
-
         return all_logs
 
     def _send_tx(self, func) -> str:

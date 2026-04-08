@@ -5,6 +5,7 @@ from pathlib import Path
 class Settings(BaseSettings):
     # Blockchain
     rpc_url: str = "http://localhost:8545"
+    logs_rpc_url: str = ""  # Separate RPC for eth_getLogs (bypasses provider block range limits)
     chain_id: int = 84532  # Base Sepolia
 
     # Contract addresses (set after deployment)

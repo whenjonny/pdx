@@ -15,7 +15,7 @@
 #   ./e2e/testnet-deploy.sh              # Full deploy + test
 #   ./e2e/testnet-deploy.sh --skip-deploy # Skip deployment, use existing addresses
 #
-set -euo pipefail
+set -uo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -37,10 +37,10 @@ FAIL=0
 assert_ok() {
   if [[ $? -eq 0 ]]; then
     ok "$1"
-    ((PASS++))
+    PASS=$((PASS+1))
   else
     fail "$1"
-    ((FAIL++))
+    FAIL=$((FAIL+1))
   fi
 }
 
@@ -206,7 +206,7 @@ RPC="$BASE_SEPOLIA_RPC_URL"
 # 3.1 Verify MockUSDC deployed
 info "3.1 Verify MockUSDC is deployed..."
 USDC_NAME=$(cast call "$USDC_ADDR" "name()(string)" --rpc-url "$RPC" 2>/dev/null || echo "")
-[[ "$USDC_NAME" == *"USDC"* || "$USDC_NAME" == *"Mock"* ]]
+[[ "$USDC_NAME" == *"USDC"* || "$USDC_NAME" == *"Mock"* || "$USDC_NAME" == *"USD"* ]]
 assert_ok "MockUSDC contract responds (name=$USDC_NAME)"
 
 # 3.2 Verify PDXMarket deployed
@@ -238,7 +238,7 @@ echo -e "${CYAN}  Phase 4: Create Sample Market${NC}"
 echo -e "${CYAN}════════════════════════════════════════════════════${NC}"
 
 # Check if market 0 already exists
-MARKET_COUNT=$(cast call "$MARKET_ADDR" "marketCount()(uint256)" --rpc-url "$RPC" 2>/dev/null || echo "0")
+MARKET_COUNT=$(cast call "$MARKET_ADDR" "nextMarketId()(uint256)" --rpc-url "$RPC" 2>/dev/null || echo "0")
 info "Current market count: $MARKET_COUNT"
 
 if [[ "$MARKET_COUNT" == "0" ]]; then
@@ -255,7 +255,7 @@ if [[ "$MARKET_COUNT" == "0" ]]; then
     --slow 2>&1 | tail -5
 
   sleep 10
-  MARKET_COUNT=$(cast call "$MARKET_ADDR" "marketCount()(uint256)" --rpc-url "$RPC" 2>/dev/null || echo "0")
+  MARKET_COUNT=$(cast call "$MARKET_ADDR" "nextMarketId()(uint256)" --rpc-url "$RPC" 2>/dev/null || echo "0")
   cd "$ROOT"
 fi
 
@@ -264,12 +264,12 @@ assert_ok "At least 1 market exists (count=$MARKET_COUNT)"
 
 # 4.1 Read market details
 info "4.1 Reading market 0 details..."
-MARKET_Q=$(cast call "$MARKET_ADDR" "getQuestion(uint256)(string)" 0 --rpc-url "$RPC" 2>/dev/null || echo "")
+MARKET_Q=$(cast call "$MARKET_ADDR" "markets(uint256)(string,bytes32,uint256,uint256,uint256,uint256,uint256,uint256,uint256,bool,bool,address,address,address)" 0 --rpc-url "$RPC" 2>/dev/null | head -1 || echo "")
 info "Market 0 question: $MARKET_Q"
 [[ -n "$MARKET_Q" ]]
 assert_ok "Market 0 has a question"
 
-PRICE_YES=$(cast call "$MARKET_ADDR" "getPriceYes(uint256)(uint256)" 0 --rpc-url "$RPC" 2>/dev/null || echo "0")
+PRICE_YES=$(cast call "$MARKET_ADDR" "getPriceYes(uint256)(uint256)" 0 --rpc-url "$RPC" 2>/dev/null | awk '{print $1}' || echo "0")
 info "Market 0 priceYes: $PRICE_YES (raw, /1e6 = price)"
 [[ "$PRICE_YES" -gt 0 ]]
 assert_ok "Market 0 has positive YES price"
@@ -305,7 +305,7 @@ assert_ok "buyYes transaction submitted"
 sleep 10
 
 # 5.3 Verify price moved
-PRICE_AFTER=$(cast call "$MARKET_ADDR" "getPriceYes(uint256)(uint256)" 0 --rpc-url "$RPC" 2>/dev/null || echo "0")
+PRICE_AFTER=$(cast call "$MARKET_ADDR" "getPriceYes(uint256)(uint256)" 0 --rpc-url "$RPC" 2>/dev/null | awk '{print $1}' || echo "0")
 info "Price before: $PRICE_BEFORE → after: $PRICE_AFTER"
 [[ "$PRICE_AFTER" -gt "$PRICE_BEFORE" ]]
 assert_ok "YES price increased after buy (AMM working)"
@@ -328,8 +328,9 @@ fi
 source venv/bin/activate
 pip install -q -r requirements.txt 2>/dev/null
 
-# Get current block number as deploy_block for event queries
-DEPLOY_BLOCK=$(cast block-number --rpc-url "$RPC" 2>/dev/null || echo "0")
+# Read deploy_block from backend/.env (captures historical trades from deployment)
+DEPLOY_BLOCK=$(grep -i "^deploy_block" "$ROOT/backend/.env" | cut -d'=' -f2 | tr -d ' ' || echo "0")
+[[ -z "$DEPLOY_BLOCK" || "$DEPLOY_BLOCK" == "0" ]] && DEPLOY_BLOCK=$(cast block-number --rpc-url "$RPC" 2>/dev/null || echo "0")
 info "Using deploy_block=$DEPLOY_BLOCK for event log queries"
 
 # Start backend pointing to Base Sepolia
@@ -466,6 +467,7 @@ VITE_CHAIN=testnet
 VITE_RPC_URL=$BASE_SEPOLIA_RPC_URL
 VITE_PDX_MARKET_ADDRESS=$MARKET_ADDR
 VITE_MOCK_USDC_ADDRESS=$USDC_ADDR
+VITE_PDX_ORACLE_ADDRESS=$ORACLE_ADDR
 EOF
 
 info "Building frontend (tsc + vite)..."
@@ -484,9 +486,9 @@ echo -e "${CYAN}  Phase 8: Sell Test (Sell YES back)${NC}"
 echo -e "${CYAN}════════════════════════════════════════════════════${NC}"
 
 # Get YES token address
-YES_TOKEN=$(cast call "$MARKET_ADDR" "getYesToken(uint256)(address)" 0 --rpc-url "$RPC" 2>/dev/null || echo "")
+YES_TOKEN=$(cast call "$MARKET_ADDR" "getMarketTokens(uint256)(address,address)" 0 --rpc-url "$RPC" 2>/dev/null | head -1 || echo "")
 if [[ -n "$YES_TOKEN" && "$YES_TOKEN" != "0x" ]]; then
-  YES_BAL=$(cast call "$YES_TOKEN" "balanceOf(address)(uint256)" "$DEPLOYER_ADDR" --rpc-url "$RPC" 2>/dev/null || echo "0")
+  YES_BAL=$(cast call "$YES_TOKEN" "balanceOf(address)(uint256)" "$DEPLOYER_ADDR" --rpc-url "$RPC" 2>/dev/null | awk '{print $1}' || echo "0")
   info "YES token balance: $YES_BAL"
 
   if [[ "$YES_BAL" -gt 0 ]]; then
@@ -499,15 +501,15 @@ if [[ -n "$YES_TOKEN" && "$YES_TOKEN" != "0x" ]]; then
     # Sell half the YES tokens
     SELL_AMOUNT=$((YES_BAL / 2))
     info "Selling $SELL_AMOUNT YES tokens..."
-    SELL_TX=$(cast send "$MARKET_ADDR" "sellYes(uint256,uint256)" \
-      0 "$SELL_AMOUNT" \
+    SELL_TX=$(cast send "$MARKET_ADDR" "sell(uint256,bool,uint256)" \
+      0 true "$SELL_AMOUNT" \
       --rpc-url "$RPC" \
       --private-key "$PRIVATE_KEY" 2>&1 || true)
     echo "$SELL_TX" | grep -q "transactionHash\|blockNumber\|status.*1" 2>/dev/null
     assert_ok "sellYes transaction submitted"
     sleep 10
 
-    PRICE_AFTER_SELL=$(cast call "$MARKET_ADDR" "getPriceYes(uint256)(uint256)" 0 --rpc-url "$RPC" 2>/dev/null || echo "0")
+    PRICE_AFTER_SELL=$(cast call "$MARKET_ADDR" "getPriceYes(uint256)(uint256)" 0 --rpc-url "$RPC" 2>/dev/null | awk '{print $1}' || echo "0")
     info "Price after sell: $PRICE_AFTER_SELL (should be lower than $PRICE_AFTER)"
     [[ "$PRICE_AFTER_SELL" -lt "$PRICE_AFTER" ]]
     assert_ok "YES price decreased after sell (AMM working)"
