@@ -55,9 +55,32 @@ class EvidenceUploadRequest(BaseModel):
     direction: str = "YES"  # "YES" or "NO"
 
 
+class EvidenceUploadRequestV2(BaseModel):
+    """V2 evidence with agent-preprocessed data (embedding, Monte Carlo, etc.)."""
+    market_id: int
+    title: str
+    content: str
+    source_url: str = ""
+    direction: str = "YES"
+    # ─── V2 preprocessed fields ───
+    confidence: float = 0.5
+    embedding: list[float] | None = None         # 384-dim vector
+    monte_carlo: dict | None = None              # {mean, std, ci_95_lower, ci_95_upper, n_simulations}
+    sources: list[dict] | None = None            # [{url, title, credibility, published}]
+    structured_analysis: dict | None = None      # {claim, supporting_points, counter_points, net_sentiment}
+    generated_by: str = "human"
+
+
 class EvidenceUploadResponse(BaseModel):
     cid: str
     evidenceHash: str  # bytes32 hex
+
+
+class AggregationDetail(BaseModel):
+    total_evidence: int
+    v2_evidence: int
+    cluster_count: int
+    agreement_score: float  # 0-1, how much evidence agrees
 
 
 class PredictionResponse(BaseModel):
@@ -69,6 +92,17 @@ class PredictionResponse(BaseModel):
     source: str
     amm_price_yes: float = 0.0
     updated_at: int = 0
+
+
+class TrustScoreDetail(BaseModel):
+    """Anti-cheat trust evaluation result for a single evidence item."""
+    evidence_index: int
+    trust_score: float            # composite score used as weight (0.0 - 1.0)
+    credibility: float            # server-computed domain credibility (0.0 - 1.0)
+    address_cap_factor: float     # per-address damping (0.0 - 1.0)
+    novelty_factor: float         # originality penalty (0.05 - 1.0)
+    mc_valid: bool                # Monte Carlo sanity check passed
+    embedding_verified: bool | None = None  # None = not spot-checked
 
 
 class CreateMarketRequest(BaseModel):

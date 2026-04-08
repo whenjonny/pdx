@@ -5,6 +5,7 @@ import MarketPage from './pages/MarketPage';
 import FaucetPage from './pages/FaucetPage';
 import PortfolioPage from './pages/PortfolioPage';
 import OraclePage from './pages/OraclePage';
+import SignPage from './pages/SignPage';
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
         <Route path="/faucet" element={<FaucetPage />} />
         <Route path="/portfolio" element={<PortfolioPage />} />
         <Route path="/oracle" element={<OraclePage />} />
+        <Route path="/sign" element={<SignPage />} />
       </Routes>
     </div>
   );

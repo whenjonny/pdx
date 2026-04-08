@@ -37,6 +37,12 @@ class Settings(BaseSettings):
     mirofish_llm_model: str = "gpt-4o-mini"
     mirofish_interval_seconds: int = 300  # 5 minutes
 
+    # Anti-cheat
+    anticheat_enabled: bool = True
+    anticheat_spot_check_rate: float = 0.2       # recompute 20% of embeddings server-side
+    anticheat_embedding_tolerance: float = 0.90  # cosine sim threshold for spot-check pass
+    anticheat_max_address_fraction: float = 0.25 # per-address evidence weight cap
+
     # Server
     cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
 

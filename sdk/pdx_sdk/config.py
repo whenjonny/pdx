@@ -11,6 +11,7 @@ DEFAULT_ABI_DIR = str(
 )
 
 DEFAULT_BACKEND_URL = "http://localhost:8000"
+DEFAULT_FRONTEND_URL = "http://localhost:5173"
 
 # Maximum uint256 used for unlimited approvals.
 MAX_UINT256 = 2**256 - 1
