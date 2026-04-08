@@ -1,10 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 510" width="980" height="510" font-family="'Segoe UI', Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1060 720" width="1060" height="720" font-family="'Segoe UI', Arial, sans-serif">
 
   <!-- Background -->
-  <rect width="980" height="510" fill="#0f1117"/>
+  <rect width="1060" height="720" fill="#0f1117"/>
 
   <!-- Title -->
-  <text x="490" y="44" text-anchor="middle" fill="#ffffff" font-size="18" font-weight="600" letter-spacing="2">PDX · SYSTEM ARCHITECTURE</text>
+  <text x="530" y="40" text-anchor="middle" fill="#ffffff" font-size="18" font-weight="600" letter-spacing="2">PDX · SYSTEM ARCHITECTURE</text>
 
   <!-- ─── MARKERS ─── -->
   <defs>
@@ -12,95 +12,191 @@
     <marker id="arr-amber"  markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#f59e0b"/></marker>
     <marker id="arr-purple" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#8b5cf6"/></marker>
     <marker id="arr-green"  markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#10b981"/></marker>
+    <marker id="arr-cyan"   markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#06b6d4"/></marker>
+    <marker id="arr-violet" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#a855f7"/></marker>
+    <marker id="arr-gray"   markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#6b7280"/></marker>
   </defs>
 
   <!--
-    Layout (all centered in 980px viewBox):
-    Top row: User(x=179,w=150) | Frontend(x=410,w=158) | Backend(x=648,w=152)
-    Content span: 179~800 = 621px → center = 179+310.5 = 489.5 ≈ 490 ✓
-    Bottom: SmartContract(x=408,w=165) center=490.5 ✓
+    Layout (3 rows, 3 columns):
+
+    Row 1 (y=60):  [User]        [AI Agent]       [Frontend]
+    Row 2 (y=290): [   Backend (wide, with 3 internal sub-boxes)   ]
+    Row 3 (y=510): [Smart Contracts]   [IPFS]        [SQLite]
+
+    Frontend ↔ Smart Contract arrows routed along left edge,
+    outside the Backend box.
   -->
 
-  <!-- ─── USER BOX ─── x=179, w=150, center_x=254 -->
-  <rect x="179" y="75" width="150" height="170" rx="14" fill="#1a1d27" stroke="#3b82f6" stroke-width="1.5"/>
-  <circle cx="254" cy="123" r="20" fill="none" stroke="#3b82f6" stroke-width="2"/>
-  <path d="M220,162 Q254,144 288,162" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>
-  <text x="254" y="207" text-anchor="middle" fill="#ffffff" font-size="15" font-weight="600">User</text>
-  <text x="254" y="224" text-anchor="middle" fill="#6b7280" font-size="10">MetaMask Wallet</text>
+  <!-- ═══════════════════ ROW 1 ═══════════════════ -->
 
-  <!-- ─── FRONTEND BOX ─── x=410, w=158, center_x=489 -->
-  <rect x="410" y="75" width="158" height="170" rx="14" fill="#1a1d27" stroke="#8b5cf6" stroke-width="1.5"/>
-  <rect x="444" y="98" width="90" height="65" rx="5" fill="none" stroke="#8b5cf6" stroke-width="2"/>
-  <line x1="444" y1="111" x2="534" y2="111" stroke="#8b5cf6" stroke-width="2"/>
-  <circle cx="455" cy="105" r="3" fill="#8b5cf6"/>
-  <circle cx="466" cy="105" r="3" fill="#8b5cf6"/>
-  <circle cx="477" cy="105" r="3" fill="#8b5cf6"/>
-  <text x="489" y="207" text-anchor="middle" fill="#ffffff" font-size="15" font-weight="600">Frontend</text>
-  <text x="489" y="224" text-anchor="middle" fill="#6b7280" font-size="10">React · Wagmi · Viem</text>
+  <!-- ─── USER ─── cx=142 -->
+  <rect x="68" y="60" width="148" height="155" rx="14" fill="#1a1d27" stroke="#3b82f6" stroke-width="1.5"/>
+  <circle cx="142" cy="104" r="18" fill="none" stroke="#3b82f6" stroke-width="2"/>
+  <path d="M114,138 Q142,122 170,138" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>
+  <text x="142" y="176" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="600">User</text>
+  <text x="142" y="192" text-anchor="middle" fill="#6b7280" font-size="9">MetaMask Wallet</text>
 
-  <!-- ─── BACKEND BOX ─── x=648, w=152, center_x=724 -->
-  <rect x="648" y="75" width="152" height="170" rx="14" fill="#1a1d27" stroke="#f59e0b" stroke-width="1.5"/>
-  <!-- API server panel icon: rect with LED+route rows -->
-  <rect x="696" y="98" width="56" height="72" rx="4" fill="none" stroke="#f59e0b" stroke-width="2"/>
-  <circle cx="706" cy="118" r="3" fill="#f59e0b"/>
-  <line x1="714" y1="118" x2="744" y2="118" stroke="#f59e0b" stroke-width="1.8"/>
-  <circle cx="706" cy="134" r="3" fill="#f59e0b"/>
-  <line x1="714" y1="134" x2="744" y2="134" stroke="#f59e0b" stroke-width="1.8"/>
-  <circle cx="706" cy="150" r="3" fill="#f59e0b"/>
-  <line x1="714" y1="150" x2="737" y2="150" stroke="#f59e0b" stroke-width="1.8"/>
-  <text x="724" y="207" text-anchor="middle" fill="#ffffff" font-size="15" font-weight="600">Backend</text>
-  <text x="724" y="224" text-anchor="middle" fill="#6b7280" font-size="10">FastAPI · Web3.py · IPFS</text>
+  <!-- ─── AI AGENT ─── cx=375 -->
+  <rect x="290" y="60" width="170" height="155" rx="14" fill="#1a1d27" stroke="#06b6d4" stroke-width="1.5"/>
+  <!-- robot head -->
+  <rect x="349" y="82" width="32" height="26" rx="6" fill="none" stroke="#06b6d4" stroke-width="2"/>
+  <circle cx="358" cy="94" r="3" fill="#06b6d4"/>
+  <circle cx="372" cy="94" r="3" fill="#06b6d4"/>
+  <line x1="355" y1="108" x2="375" y2="108" stroke="#06b6d4" stroke-width="2" stroke-linecap="round"/>
+  <line x1="365" y1="76" x2="365" y2="82" stroke="#06b6d4" stroke-width="2"/>
+  <circle cx="365" cy="74" r="2" fill="#06b6d4"/>
+  <text x="375" y="140" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="600">AI Agent</text>
+  <text x="375" y="156" text-anchor="middle" fill="#6b7280" font-size="9">Claude Code · Python SDK</text>
+  <text x="375" y="170" text-anchor="middle" fill="#6b7280" font-size="9">Embedding · Monte Carlo</text>
+  <text x="375" y="184" text-anchor="middle" fill="#6b7280" font-size="9">Evidence Research</text>
 
-  <!-- ─── SMART CONTRACT BOX ─── x=408, w=165, center_x=490, top=305, h=130, bottom=435 -->
-  <rect x="408" y="305" width="165" height="130" rx="14" fill="#1a1d27" stroke="#10b981" stroke-width="1.5"/>
-  <!-- Ethereum diamond icon – taller than wide, proper proportions -->
-  <polygon points="490,315 503,334 490,352 477,334" fill="none" stroke="#10b981" stroke-width="2" stroke-linejoin="round"/>
-  <polygon points="490,321 500,334 490,349 480,334" fill="#10b981" fill-opacity="0.15"/>
-  <text x="490" y="378" text-anchor="middle" fill="#ffffff" font-size="15" font-weight="600">Smart Contract</text>
-  <text x="490" y="394" text-anchor="middle" fill="#6b7280" font-size="10">PDXMarket · Base Sepolia</text>
+  <!-- ─── FRONTEND ─── cx=628 -->
+  <rect x="540" y="60" width="176" height="155" rx="14" fill="#1a1d27" stroke="#8b5cf6" stroke-width="1.5"/>
+  <!-- browser chrome -->
+  <rect x="586" y="82" width="84" height="52" rx="5" fill="none" stroke="#8b5cf6" stroke-width="2"/>
+  <line x1="586" y1="94" x2="670" y2="94" stroke="#8b5cf6" stroke-width="2"/>
+  <circle cx="596" cy="88" r="2.5" fill="#8b5cf6"/>
+  <circle cx="605" cy="88" r="2.5" fill="#8b5cf6"/>
+  <circle cx="614" cy="88" r="2.5" fill="#8b5cf6"/>
+  <text x="628" y="176" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="600">Frontend</text>
+  <text x="628" y="192" text-anchor="middle" fill="#6b7280" font-size="9">React · Wagmi · Tailwind</text>
 
-  <!-- ─── ARROWS ─── -->
+  <!-- ═══════════════════ ROW 2 ═══════════════════ -->
 
-  <!-- 1a. User → Frontend (top) -->
-  <line x1="329" y1="148" x2="405" y2="140" stroke="#3b82f6" stroke-width="1.8" marker-end="url(#arr-blue)"/>
-  <text x="368" y="134" text-anchor="middle" fill="#3b82f6" font-size="10" font-weight="500">UI Actions</text>
+  <!-- ─── BACKEND (wide) ─── -->
+  <rect x="188" y="290" width="540" height="165" rx="14" fill="#1a1d27" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="458" y="312" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="600">Backend</text>
+  <text x="458" y="328" text-anchor="middle" fill="#6b7280" font-size="9">FastAPI · Web3.py</text>
 
-  <!-- 1b. Frontend → User (bottom) -->
-  <line x1="405" y1="163" x2="329" y2="171" stroke="#3b82f6" stroke-width="1.8" marker-end="url(#arr-blue)"/>
-  <text x="368" y="186" text-anchor="middle" fill="#3b82f6" font-size="10" font-weight="500">Market Data</text>
+  <!-- Sub-box: API Routers -->
+  <rect x="208" y="340" width="145" height="95" rx="8" fill="#1a1d27" stroke="#f59e0b" stroke-width="1" stroke-opacity="0.4"/>
+  <text x="280" y="358" text-anchor="middle" fill="#f59e0b" font-size="10" font-weight="500">API Routers</text>
+  <text x="280" y="374" text-anchor="middle" fill="#6b7280" font-size="9">/markets</text>
+  <text x="280" y="388" text-anchor="middle" fill="#6b7280" font-size="9">/evidence</text>
+  <text x="280" y="402" text-anchor="middle" fill="#6b7280" font-size="9">/predictions</text>
+  <text x="280" y="416" text-anchor="middle" fill="#6b7280" font-size="9">/users</text>
 
-  <!-- 2a. Frontend → Backend (top) -->
-  <line x1="568" y1="140" x2="643" y2="140" stroke="#f59e0b" stroke-width="1.8" marker-end="url(#arr-amber)"/>
-  <text x="606" y="132" text-anchor="middle" fill="#f59e0b" font-size="10" font-weight="500">REST API</text>
+  <!-- Sub-box: MiroFish Engine -->
+  <rect x="373" y="340" width="170" height="95" rx="8" fill="#1a1d27" stroke="#f43f5e" stroke-width="1" stroke-opacity="0.6"/>
+  <text x="458" y="358" text-anchor="middle" fill="#f43f5e" font-size="10" font-weight="500">MiroFish Engine</text>
+  <text x="458" y="374" text-anchor="middle" fill="#6b7280" font-size="9">Scheduler (5-min cycle)</text>
+  <text x="458" y="388" text-anchor="middle" fill="#6b7280" font-size="9">V2 Aggregator</text>
+  <text x="458" y="402" text-anchor="middle" fill="#6b7280" font-size="9">Anti-Cheat · Trust Scores</text>
+  <text x="458" y="416" text-anchor="middle" fill="#6b7280" font-size="9">Domain Whitelist</text>
 
-  <!-- 2b. Backend → Frontend (bottom) -->
-  <line x1="643" y1="163" x2="568" y2="163" stroke="#f59e0b" stroke-width="1.8" marker-end="url(#arr-amber)"/>
-  <text x="606" y="180" text-anchor="middle" fill="#f59e0b" font-size="10" font-weight="500">Markets · Evidence · Predictions</text>
+  <!-- Sub-box: Blockchain Service -->
+  <rect x="563" y="340" width="145" height="95" rx="8" fill="#1a1d27" stroke="#10b981" stroke-width="1" stroke-opacity="0.4"/>
+  <text x="635" y="358" text-anchor="middle" fill="#10b981" font-size="10" font-weight="500">Blockchain Svc</text>
+  <text x="635" y="374" text-anchor="middle" fill="#6b7280" font-size="9">Event Logs (chunked)</text>
+  <text x="635" y="388" text-anchor="middle" fill="#6b7280" font-size="9">Market State</text>
+  <text x="635" y="402" text-anchor="middle" fill="#6b7280" font-size="9">Trade Execution</text>
+  <text x="635" y="416" text-anchor="middle" fill="#6b7280" font-size="9">Evidence Query</text>
 
-  <!-- 3a. Frontend → Smart Contract (left channel, parallel to 3b) -->
-  <line x1="462" y1="245" x2="462" y2="303" stroke="#8b5cf6" stroke-width="1.8" marker-end="url(#arr-purple)"/>
-  <text x="456" y="278" text-anchor="end" fill="#8b5cf6" font-size="10" font-weight="500">Write Txns</text>
+  <!-- ═══════════════════ ROW 3 ═══════════════════ -->
 
-  <!-- 3b. Smart Contract → Frontend (right channel, clearly separated) -->
-  <line x1="518" y1="303" x2="518" y2="245" stroke="#8b5cf6" stroke-width="1.8" marker-end="url(#arr-purple)"/>
-  <text x="525" y="278" text-anchor="start" fill="#8b5cf6" font-size="10" font-weight="500">Events &amp; State</text>
+  <!-- ─── SMART CONTRACTS ─── cx=245 -->
+  <rect x="130" y="518" width="230" height="135" rx="14" fill="#1a1d27" stroke="#10b981" stroke-width="1.5"/>
+  <polygon points="245,530 257,546 245,562 233,546" fill="none" stroke="#10b981" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="245,535 254,546 245,558 236,546" fill="#10b981" fill-opacity="0.15"/>
+  <text x="245" y="582" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="600">Smart Contracts</text>
+  <text x="245" y="598" text-anchor="middle" fill="#6b7280" font-size="9">Base Sepolia · Chain 84532</text>
+  <text x="245" y="614" text-anchor="middle" fill="#6b7280" font-size="9">PDXMarket V1/V2 · Oracle</text>
+  <text x="245" y="630" text-anchor="middle" fill="#6b7280" font-size="9">MockUSDC · OutcomeToken</text>
 
-  <!-- 4. Backend → Smart Contract (dashed, read-only) -->
-  <line x1="718" y1="245" x2="575" y2="330" stroke="#10b981" stroke-width="1.8" stroke-dasharray="6,4" marker-end="url(#arr-green)"/>
-  <text x="672" y="298" text-anchor="middle" fill="#10b981" font-size="10" font-weight="500">Read Events</text>
+  <!-- ─── IPFS ─── cx=500 -->
+  <rect x="425" y="518" width="150" height="135" rx="14" fill="#1a1d27" stroke="#a855f7" stroke-width="1.5"/>
+  <circle cx="500" cy="546" r="12" fill="none" stroke="#a855f7" stroke-width="2"/>
+  <circle cx="500" cy="546" r="4" fill="#a855f7" fill-opacity="0.3"/>
+  <circle cx="488" cy="537" r="2" fill="#a855f7"/>
+  <circle cx="512" cy="537" r="2" fill="#a855f7"/>
+  <circle cx="500" cy="556" r="2" fill="#a855f7"/>
+  <text x="500" y="578" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="600">IPFS</text>
+  <text x="500" y="594" text-anchor="middle" fill="#6b7280" font-size="9">Pinata (or Mock)</text>
+  <text x="500" y="610" text-anchor="middle" fill="#6b7280" font-size="9">Evidence Storage</text>
+  <text x="500" y="626" text-anchor="middle" fill="#6b7280" font-size="9">CID Registry</text>
 
-  <!-- ─── LEGEND ─── -->
-  <line x1="60" y1="452" x2="920" y2="452" stroke="#1f2937" stroke-width="1"/>
-  <text x="245" y="474" text-anchor="middle" font-size="10">
-    <tspan fill="#3b82f6">●</tspan><tspan fill="#6b7280">  UI Actions · Market Data</tspan>
+  <!-- ─── SQLITE ─── cx=722 -->
+  <rect x="645" y="518" width="150" height="135" rx="14" fill="#1a1d27" stroke="#6b7280" stroke-width="1.5"/>
+  <ellipse cx="720" cy="538" rx="18" ry="8" fill="none" stroke="#6b7280" stroke-width="2"/>
+  <path d="M702,538 L702,556" stroke="#6b7280" stroke-width="2"/>
+  <path d="M738,538 L738,556" stroke="#6b7280" stroke-width="2"/>
+  <ellipse cx="720" cy="556" rx="18" ry="8" fill="none" stroke="#6b7280" stroke-width="2"/>
+  <text x="720" y="578" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="600">SQLite</text>
+  <text x="720" y="594" text-anchor="middle" fill="#6b7280" font-size="9">Local Persistence</text>
+  <text x="720" y="610" text-anchor="middle" fill="#6b7280" font-size="9">Market Metadata</text>
+  <text x="720" y="626" text-anchor="middle" fill="#6b7280" font-size="9">Predictions Cache</text>
+
+  <!-- ═══════════════════ ARROWS ═══════════════════ -->
+
+  <!-- 1. User → Frontend -->
+  <line x1="216" y1="125" x2="535" y2="115" stroke="#3b82f6" stroke-width="1.6" marker-end="url(#arr-blue)"/>
+  <text x="376" y="108" text-anchor="middle" fill="#3b82f6" font-size="9" font-weight="500">Trade · Browse · Sign</text>
+
+  <!-- 2. User → AI Agent -->
+  <line x1="216" y1="148" x2="285" y2="148" stroke="#06b6d4" stroke-width="1.6" marker-end="url(#arr-cyan)"/>
+  <text x="250" y="140" text-anchor="middle" fill="#06b6d4" font-size="9" font-weight="500">Delegate</text>
+
+  <!-- 3. AI Agent → Frontend (signing URL) -->
+  <line x1="460" y1="102" x2="535" y2="102" stroke="#06b6d4" stroke-width="1.6" marker-end="url(#arr-cyan)"/>
+  <text x="497" y="94" text-anchor="middle" fill="#06b6d4" font-size="9" font-weight="500">Signing URL</text>
+
+  <!-- 4. AI Agent → Backend (API) -->
+  <line x1="375" y1="215" x2="375" y2="285" stroke="#f59e0b" stroke-width="1.6" marker-end="url(#arr-amber)"/>
+  <text x="368" y="254" text-anchor="end" fill="#f59e0b" font-size="9" font-weight="500">REST API</text>
+
+  <!-- 5. Frontend → Backend (API) -->
+  <line x1="628" y1="215" x2="540" y2="287" stroke="#f59e0b" stroke-width="1.6" marker-end="url(#arr-amber)"/>
+  <text x="600" y="252" text-anchor="middle" fill="#f59e0b" font-size="9" font-weight="500">Markets · Evidence</text>
+
+  <!-- 6. Frontend ↔ Smart Contract — routed along left edge -->
+  <!-- 6a. Frontend → Smart Contract (write txns) — path goes: down from Frontend, left outside backend, down to contracts -->
+  <path d="M540,190 L140,190 L140,515" fill="none" stroke="#8b5cf6" stroke-width="1.6" marker-end="url(#arr-purple)"/>
+  <text x="340" y="184" text-anchor="middle" fill="#8b5cf6" font-size="9" font-weight="500">Write Txns (wagmi)</text>
+
+  <!-- 6b. Smart Contract → Frontend (events &amp; state) — path goes: up from contracts, right outside, up to Frontend -->
+  <path d="M155,518 L155,240 L540,240" fill="none" stroke="#8b5cf6" stroke-width="1.6" stroke-dasharray="5,3" marker-end="url(#arr-purple)"/>
+  <text x="155" y="400" text-anchor="start" fill="#8b5cf6" font-size="9" font-weight="500"> Events &amp; State</text>
+
+  <!-- 7. Backend → Smart Contract (read logs) -->
+  <line x1="350" y1="455" x2="290" y2="515" stroke="#10b981" stroke-width="1.6" stroke-dasharray="5,3" marker-end="url(#arr-green)"/>
+  <text x="296" y="484" text-anchor="middle" fill="#10b981" font-size="9" font-weight="500">Read Logs</text>
+
+  <!-- 8. Backend → IPFS (pin / fetch) -->
+  <line x1="458" y1="455" x2="490" y2="513" stroke="#a855f7" stroke-width="1.6" marker-end="url(#arr-violet)"/>
+  <text x="488" y="488" text-anchor="middle" fill="#a855f7" font-size="9" font-weight="500">Pin · Fetch</text>
+
+  <!-- 9. Backend → SQLite (persist) -->
+  <line x1="620" y1="455" x2="700" y2="513" stroke="#6b7280" stroke-width="1.6" marker-end="url(#arr-gray)"/>
+  <text x="676" y="480" text-anchor="middle" fill="#6b7280" font-size="9" font-weight="500">Persist · Query</text>
+
+  <!-- 10. AI Agent → IPFS (evidence upload, dashed) -->
+  <path d="M375,215 L375,245 L500,245 L500,515" fill="none" stroke="#a855f7" stroke-width="1.2" stroke-dasharray="4,4" marker-end="url(#arr-violet)"/>
+  <text x="530" y="400" text-anchor="start" fill="#a855f7" font-size="9" font-weight="500">Upload Evidence</text>
+
+  <!-- ═══════════════════ LEGEND ═══════════════════ -->
+  <line x1="40" y1="672" x2="1020" y2="672" stroke="#1f2937" stroke-width="1"/>
+
+  <text x="115" y="692" text-anchor="middle" font-size="9">
+    <tspan fill="#3b82f6">●</tspan><tspan fill="#6b7280"> User Interaction</tspan>
   </text>
-  <text x="490" y="474" text-anchor="middle" font-size="10">
-    <tspan fill="#f59e0b">●</tspan><tspan fill="#6b7280">  REST API · Evidence Upload · Predictions</tspan>
+  <text x="265" y="692" text-anchor="middle" font-size="9">
+    <tspan fill="#06b6d4">●</tspan><tspan fill="#6b7280"> AI Agent</tspan>
   </text>
-  <text x="735" y="474" text-anchor="middle" font-size="10">
-    <tspan fill="#8b5cf6">●</tspan><tspan fill="#6b7280">  Write Txns · Events &amp; State</tspan>
-    <tspan fill="#6b7280">        </tspan><tspan fill="#10b981">●</tspan><tspan fill="#6b7280">  Read Events</tspan>
+  <text x="395" y="692" text-anchor="middle" font-size="9">
+    <tspan fill="#f59e0b">●</tspan><tspan fill="#6b7280"> REST API</tspan>
+  </text>
+  <text x="525" y="692" text-anchor="middle" font-size="9">
+    <tspan fill="#8b5cf6">●</tspan><tspan fill="#6b7280"> Txns &amp; Events</tspan>
+  </text>
+  <text x="665" y="692" text-anchor="middle" font-size="9">
+    <tspan fill="#10b981">●</tspan><tspan fill="#6b7280"> Chain Read</tspan>
+  </text>
+  <text x="820" y="692" text-anchor="middle" font-size="9">
+    <tspan fill="#a855f7">●</tspan><tspan fill="#6b7280"> IPFS</tspan>
+    <tspan fill="#6b7280">    </tspan>
+    <tspan fill="#6b7280">●</tspan><tspan fill="#6b7280"> Storage</tspan>
   </text>
 
-  <text x="490" y="496" text-anchor="middle" fill="#374151" font-size="9" letter-spacing="1">PDX PREDICTION MARKET PLATFORM</text>
+  <text x="530" y="712" text-anchor="middle" fill="#374151" font-size="9" letter-spacing="1">PDX PREDICTION MARKET PLATFORM</text>
 </svg>
