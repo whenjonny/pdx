@@ -19,7 +19,7 @@ export default function EvidenceList({ marketId }: EvidenceListProps) {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 overflow-y-auto pr-1" style={{ maxHeight: '570px' }}>
       {evidence.map((e, i) => (
         <div key={i} className="p-3 rounded-lg bg-slate-900/50 border border-slate-700/30">
           <div className="flex justify-between text-xs text-slate-500 mb-1">

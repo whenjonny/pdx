@@ -1,6 +1,7 @@
 import logging
 import time
 from web3 import Web3
+from web3._utils.events import get_event_data
 from eth_account import Account
 from app.config import settings
 from app.utils.abi_loader import load_abi
@@ -88,8 +89,8 @@ class BlockchainService:
 
         # ── Path A: separate logs RPC (public endpoint, no block-range limit) ──
         if self._logs_w3 is not self.w3:
-            topic = "0x" + self._logs_w3.keccak(
-                text=self._event_signature(event.abi)
+            topic = self._logs_w3.keccak(
+                text=self._event_signature(event._get_event_abi())
             ).hex()
             base_filter: dict = {"address": event.address, "topics": [topic]}
             all_logs: list = []
@@ -101,7 +102,8 @@ class BlockchainService:
                     raw = self._logs_w3.eth.get_logs(
                         {**base_filter, "fromBlock": current, "toBlock": to_block}
                     )
-                    processed = [event.process_log(r) for r in raw]
+                    event_abi = event._get_event_abi()
+                    processed = [get_event_data(self._logs_w3.codec, event_abi, r) for r in raw]
                     if argument_filters:
                         processed = [
                             l for l in processed
