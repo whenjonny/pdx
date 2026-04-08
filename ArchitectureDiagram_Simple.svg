@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 510" width="980" height="510" font-family="'Segoe UI', Arial, sans-serif">
+
+  <!-- Background -->
+  <rect width="980" height="510" fill="#0f1117"/>
+
+  <!-- Title -->
+  <text x="490" y="44" text-anchor="middle" fill="#ffffff" font-size="18" font-weight="600" letter-spacing="2">PDX · SYSTEM ARCHITECTURE</text>
+
+  <!-- ─── MARKERS ─── -->
+  <defs>
+    <marker id="arr-blue"   markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#3b82f6"/></marker>
+    <marker id="arr-amber"  markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#f59e0b"/></marker>
+    <marker id="arr-purple" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#8b5cf6"/></marker>
+    <marker id="arr-green"  markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#10b981"/></marker>
+  </defs>
+
+  <!--
+    Layout (all centered in 980px viewBox):
+    Top row: User(x=179,w=150) | Frontend(x=410,w=158) | Backend(x=648,w=152)
+    Content span: 179~800 = 621px → center = 179+310.5 = 489.5 ≈ 490 ✓
+    Bottom: SmartContract(x=408,w=165) center=490.5 ✓
+  -->
+
+  <!-- ─── USER BOX ─── x=179, w=150, center_x=254 -->
+  <rect x="179" y="75" width="150" height="170" rx="14" fill="#1a1d27" stroke="#3b82f6" stroke-width="1.5"/>
+  <circle cx="254" cy="123" r="20" fill="none" stroke="#3b82f6" stroke-width="2"/>
+  <path d="M220,162 Q254,144 288,162" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>
+  <text x="254" y="207" text-anchor="middle" fill="#ffffff" font-size="15" font-weight="600">User</text>
+  <text x="254" y="224" text-anchor="middle" fill="#6b7280" font-size="10">MetaMask Wallet</text>
+
+  <!-- ─── FRONTEND BOX ─── x=410, w=158, center_x=489 -->
+  <rect x="410" y="75" width="158" height="170" rx="14" fill="#1a1d27" stroke="#8b5cf6" stroke-width="1.5"/>
+  <rect x="444" y="98" width="90" height="65" rx="5" fill="none" stroke="#8b5cf6" stroke-width="2"/>
+  <line x1="444" y1="111" x2="534" y2="111" stroke="#8b5cf6" stroke-width="2"/>
+  <circle cx="455" cy="105" r="3" fill="#8b5cf6"/>
+  <circle cx="466" cy="105" r="3" fill="#8b5cf6"/>
+  <circle cx="477" cy="105" r="3" fill="#8b5cf6"/>
+  <text x="489" y="207" text-anchor="middle" fill="#ffffff" font-size="15" font-weight="600">Frontend</text>
+  <text x="489" y="224" text-anchor="middle" fill="#6b7280" font-size="10">React · Wagmi · Viem</text>
+
+  <!-- ─── BACKEND BOX ─── x=648, w=152, center_x=724 -->
+  <rect x="648" y="75" width="152" height="170" rx="14" fill="#1a1d27" stroke="#f59e0b" stroke-width="1.5"/>
+  <!-- API server panel icon: rect with LED+route rows -->
+  <rect x="696" y="98" width="56" height="72" rx="4" fill="none" stroke="#f59e0b" stroke-width="2"/>
+  <circle cx="706" cy="118" r="3" fill="#f59e0b"/>
+  <line x1="714" y1="118" x2="744" y2="118" stroke="#f59e0b" stroke-width="1.8"/>
+  <circle cx="706" cy="134" r="3" fill="#f59e0b"/>
+  <line x1="714" y1="134" x2="744" y2="134" stroke="#f59e0b" stroke-width="1.8"/>
+  <circle cx="706" cy="150" r="3" fill="#f59e0b"/>
+  <line x1="714" y1="150" x2="737" y2="150" stroke="#f59e0b" stroke-width="1.8"/>
+  <text x="724" y="207" text-anchor="middle" fill="#ffffff" font-size="15" font-weight="600">Backend</text>
+  <text x="724" y="224" text-anchor="middle" fill="#6b7280" font-size="10">FastAPI · Web3.py · IPFS</text>
+
+  <!-- ─── SMART CONTRACT BOX ─── x=408, w=165, center_x=490, top=305, h=130, bottom=435 -->
+  <rect x="408" y="305" width="165" height="130" rx="14" fill="#1a1d27" stroke="#10b981" stroke-width="1.5"/>
+  <!-- Ethereum diamond icon – taller than wide, proper proportions -->
+  <polygon points="490,315 503,334 490,352 477,334" fill="none" stroke="#10b981" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="490,321 500,334 490,349 480,334" fill="#10b981" fill-opacity="0.15"/>
+  <text x="490" y="378" text-anchor="middle" fill="#ffffff" font-size="15" font-weight="600">Smart Contract</text>
+  <text x="490" y="394" text-anchor="middle" fill="#6b7280" font-size="10">PDXMarket · Base Sepolia</text>
+
+  <!-- ─── ARROWS ─── -->
+
+  <!-- 1a. User → Frontend (top) -->
+  <line x1="329" y1="148" x2="405" y2="140" stroke="#3b82f6" stroke-width="1.8" marker-end="url(#arr-blue)"/>
+  <text x="368" y="134" text-anchor="middle" fill="#3b82f6" font-size="10" font-weight="500">UI Actions</text>
+
+  <!-- 1b. Frontend → User (bottom) -->
+  <line x1="405" y1="163" x2="329" y2="171" stroke="#3b82f6" stroke-width="1.8" marker-end="url(#arr-blue)"/>
+  <text x="368" y="186" text-anchor="middle" fill="#3b82f6" font-size="10" font-weight="500">Market Data</text>
+
+  <!-- 2a. Frontend → Backend (top) -->
+  <line x1="568" y1="140" x2="643" y2="140" stroke="#f59e0b" stroke-width="1.8" marker-end="url(#arr-amber)"/>
+  <text x="606" y="132" text-anchor="middle" fill="#f59e0b" font-size="10" font-weight="500">REST API</text>
+
+  <!-- 2b. Backend → Frontend (bottom) -->
+  <line x1="643" y1="163" x2="568" y2="163" stroke="#f59e0b" stroke-width="1.8" marker-end="url(#arr-amber)"/>
+  <text x="606" y="180" text-anchor="middle" fill="#f59e0b" font-size="10" font-weight="500">Markets · Evidence · Predictions</text>
+
+  <!-- 3a. Frontend → Smart Contract (left channel, parallel to 3b) -->
+  <line x1="462" y1="245" x2="462" y2="303" stroke="#8b5cf6" stroke-width="1.8" marker-end="url(#arr-purple)"/>
+  <text x="456" y="278" text-anchor="end" fill="#8b5cf6" font-size="10" font-weight="500">Write Txns</text>
+
+  <!-- 3b. Smart Contract → Frontend (right channel, clearly separated) -->
+  <line x1="518" y1="303" x2="518" y2="245" stroke="#8b5cf6" stroke-width="1.8" marker-end="url(#arr-purple)"/>
+  <text x="525" y="278" text-anchor="start" fill="#8b5cf6" font-size="10" font-weight="500">Events &amp; State</text>
+
+  <!-- 4. Backend → Smart Contract (dashed, read-only) -->
+  <line x1="718" y1="245" x2="575" y2="330" stroke="#10b981" stroke-width="1.8" stroke-dasharray="6,4" marker-end="url(#arr-green)"/>
+  <text x="672" y="298" text-anchor="middle" fill="#10b981" font-size="10" font-weight="500">Read Events</text>
+
+  <!-- ─── LEGEND ─── -->
+  <line x1="60" y1="452" x2="920" y2="452" stroke="#1f2937" stroke-width="1"/>
+  <text x="245" y="474" text-anchor="middle" font-size="10">
+    <tspan fill="#3b82f6">●</tspan><tspan fill="#6b7280">  UI Actions · Market Data</tspan>
+  </text>
+  <text x="490" y="474" text-anchor="middle" font-size="10">
+    <tspan fill="#f59e0b">●</tspan><tspan fill="#6b7280">  REST API · Evidence Upload · Predictions</tspan>
+  </text>
+  <text x="735" y="474" text-anchor="middle" font-size="10">
+    <tspan fill="#8b5cf6">●</tspan><tspan fill="#6b7280">  Write Txns · Events &amp; State</tspan>
+    <tspan fill="#6b7280">        </tspan><tspan fill="#10b981">●</tspan><tspan fill="#6b7280">  Read Events</tspan>
+  </text>
+
+  <text x="490" y="496" text-anchor="middle" fill="#374151" font-size="9" letter-spacing="1">PDX PREDICTION MARKET PLATFORM</text>
+</svg>
