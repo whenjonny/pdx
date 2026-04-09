@@ -152,6 +152,25 @@
   },
   {
     "type": "function",
+    "name": "getCreatorClaimable",
+    "inputs": [
+      {
+        "name": "marketId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "claimable",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getEvidence",
     "inputs": [
       {
@@ -413,6 +432,16 @@
         "name": "noToken",
         "type": "address",
         "internalType": "contract OutcomeToken"
+      },
+      {
+        "name": "totalRedeemed",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "creatorWithdrawn",
+        "type": "bool",
+        "internalType": "bool"
       }
     ],
     "stateMutability": "view"
@@ -558,6 +587,44 @@
       }
     ],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "withdrawCreatorFunds",
+    "inputs": [
+      {
+        "name": "marketId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "CreatorWithdrew",
+    "inputs": [
+      {
+        "name": "marketId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "creator",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
   },
   {
     "type": "event",
@@ -766,6 +833,11 @@
   },
   {
     "type": "error",
+    "name": "AlreadyClaimed",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "DeadlineNotReached",
     "inputs": []
   },
@@ -802,6 +874,11 @@
   {
     "type": "error",
     "name": "NothingToRedeem",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "OnlyCreator",
     "inputs": []
   },
   {
