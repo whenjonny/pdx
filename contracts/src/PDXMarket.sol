@@ -37,6 +37,8 @@ contract PDXMarket is ReentrancyGuard {
         address creator;
         OutcomeToken yesToken;
         OutcomeToken noToken;
+        uint256 totalRedeemed;    // tracks cumulative USDC paid out via redeem()
+        bool    creatorWithdrawn; // prevents double-withdrawal
     }
 
     struct Evidence {
@@ -66,6 +68,7 @@ contract PDXMarket is ReentrancyGuard {
     event EvidenceSubmitted(uint256 indexed marketId, address indexed submitter, bytes32 ipfsHash, string summary);
     event MarketSettled(uint256 indexed marketId, bool outcome);
     event Redeemed(uint256 indexed marketId, address indexed user, uint256 amount);
+    event CreatorWithdrew(uint256 indexed marketId, address indexed creator, uint256 amount);
     event OracleUpdated(address indexed oldOracle, address indexed newOracle);
 
     // ─── Errors ──────────────────────────────────────────────────
@@ -81,6 +84,8 @@ contract PDXMarket is ReentrancyGuard {
     error InsufficientLiquidity();
     error NothingToRedeem();
     error ZeroAmount();
+    error AlreadyClaimed();
+    error OnlyCreator();
 
     // ─── Modifiers ───────────────────────────────────────────────
 
@@ -168,7 +173,9 @@ contract PDXMarket is ReentrancyGuard {
             outcome: false,
             creator: msg.sender,
             yesToken: yesToken,
-            noToken: noToken
+            noToken: noToken,
+            totalRedeemed: 0,
+            creatorWithdrawn: false
         });
 
         emit MarketCreated(marketId, question, msg.sender, deadline);
@@ -301,10 +308,63 @@ contract PDXMarket is ReentrancyGuard {
         if (balance == 0) revert NothingToRedeem();
 
         // Burn winning tokens, transfer USDC 1:1
+        m.totalRedeemed += balance;          // track cumulative redeemed
         winningToken.burn(msg.sender, balance);
         usdc.safeTransfer(msg.sender, balance);
 
         emit Redeemed(marketId, msg.sender, balance);
+    }
+
+    // ─── Creator Withdrawal ────────────────────────────────────────
+
+    /// @notice Market creator withdraws all accrued fees + residual liquidity after settlement
+    /// @dev Creator (market maker) earns: fees + all loser funds - winner payouts
+    ///      Formula: creatorClaim = totalDeposited + feesAccrued - totalRedeemed - userWinPending
+    ///      Safety: userWinPending is deducted at call time, so winners can always redeem after.
+    function withdrawCreatorFunds(uint256 marketId) external nonReentrant {
+        Market storage m = markets[marketId];
+        if (msg.sender != m.creator) revert OnlyCreator();
+        if (!m.resolved)             revert MarketNotResolved();
+        if (m.creatorWithdrawn)      revert AlreadyClaimed();
+
+        m.creatorWithdrawn = true;
+
+        // Determine winning/losing tokens based on settlement outcome
+        // m.outcome = true → YES wins; false → NO wins
+        OutcomeToken winningToken = m.outcome ? m.yesToken : m.noToken;
+        OutcomeToken losingToken  = m.outcome ? m.noToken  : m.yesToken;
+
+        // Calculate creator's claim BEFORE burning (burning changes totalSupply)
+        // userWinPending = winning tokens still held by users (not yet redeemed)
+        // creatorClaim = all pool USDC - already paid to winners - still owed to winners
+        uint256 userWinPending = winningToken.totalSupply() - winningToken.balanceOf(address(this));
+        uint256 creatorClaim   = m.totalDeposited + m.feesAccrued
+                                 - m.totalRedeemed
+                                 - userWinPending;
+        m.feesAccrued = 0;
+
+        // Burn contract's winning LP tokens (creator's LP position cleanup)
+        uint256 lpWin = winningToken.balanceOf(address(this));
+        if (lpWin > 0) winningToken.burn(address(this), lpWin);
+
+        // Burn contract's losing LP tokens (worthless cleanup)
+        uint256 lpLose = losingToken.balanceOf(address(this));
+        if (lpLose > 0) losingToken.burn(address(this), lpLose);
+
+        if (creatorClaim > 0) usdc.safeTransfer(m.creator, creatorClaim);
+        emit CreatorWithdrew(marketId, m.creator, creatorClaim);
+    }
+
+    /// @notice Returns estimated claimable amount for the market creator (only meaningful after settlement)
+    function getCreatorClaimable(uint256 marketId)
+        external view returns (uint256 claimable)
+    {
+        Market storage m = markets[marketId];
+        if (!m.resolved || m.creatorWithdrawn) return 0;
+        OutcomeToken winningToken = m.outcome ? m.yesToken : m.noToken;
+        uint256 userWinPending = winningToken.totalSupply() - winningToken.balanceOf(address(this));
+        uint256 raw = m.totalDeposited + m.feesAccrued - m.totalRedeemed - userWinPending;
+        claimable = raw > 0 ? raw : 0;
     }
 
     // ─── View Functions ──────────────────────────────────────────

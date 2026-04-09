@@ -268,6 +268,8 @@ class BlockchainService:
                 priceNo=price_no / 1e6,
                 evidenceCount=evidence_count,
                 category=self.get_market_category(market_id),
+                totalRedeemed=m[14],
+                creatorWithdrawn=m[15],
             )
         except Exception:
             return None
@@ -484,6 +486,25 @@ class BlockchainService:
                     details={
                         "amount": str(log["args"]["amount"]),
                     },
+                ))
+        except Exception:
+            pass
+
+        try:
+            # CreatorWithdrew events where creator == address
+            withdrew_logs = self._get_logs(
+                self.market_contract.events.CreatorWithdrew,
+                argument_filters={"creator": checksum_address},
+            )
+            for log in withdrew_logs:
+                block = self.w3.eth.get_block(log["blockNumber"])
+                transactions.append(UserTransaction(
+                    type="creator_withdraw",
+                    market_id=log["args"]["marketId"],
+                    timestamp=block["timestamp"],
+                    block_number=log["blockNumber"],
+                    tx_hash=log["transactionHash"].hex(),
+                    details={"amount": str(log["args"]["amount"])},
                 ))
         except Exception:
             pass

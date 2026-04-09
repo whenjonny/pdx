@@ -17,6 +17,8 @@ export interface Market {
   priceYes: number;
   priceNo: number;
   evidenceCount: number;
+  totalRedeemed: bigint;
+  creatorWithdrawn: boolean;
 }
 
 export interface MarketFromAPI {
@@ -38,6 +40,8 @@ export interface MarketFromAPI {
   priceNo: number;
   evidenceCount: number;
   category: string;
+  totalRedeemed: string;
+  creatorWithdrawn: boolean;
 }
 
 export interface Evidence {
@@ -78,7 +82,7 @@ export interface UserPosition {
 }
 
 export interface UserTransaction {
-  type: 'buy_yes' | 'buy_no' | 'sell' | 'redeem' | 'create_market' | 'submit_evidence';
+  type: 'buy_yes' | 'buy_no' | 'sell' | 'redeem' | 'create_market' | 'submit_evidence' | 'creator_withdraw';
   market_id: number;
   timestamp: number;
   block_number: number;

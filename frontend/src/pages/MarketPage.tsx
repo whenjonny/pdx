@@ -10,6 +10,9 @@ import ActivityFeed from '../components/market/ActivityFeed';
 import EvidenceList from '../components/evidence/EvidenceList';
 import EvidenceSubmitForm from '../components/evidence/EvidenceSubmitForm';
 import MiroFishProbability from '../components/prediction/MiroFishProbability';
+import { useAccount } from 'wagmi';
+import { useQueryClient } from '@tanstack/react-query';
+import { useCreatorClaimable, useWithdrawCreatorFunds } from '../hooks/useTrading';
 
 type Tab = 'trade' | 'sell' | 'activity';
 
@@ -117,6 +120,7 @@ export default function MarketPage() {
 
         {/* Right column (1/3) */}
         <div className="space-y-4">
+          <CreatorPanel market={market} />
           <PositionDisplay market={market} />
           <MiroFishProbability marketId={marketId} ammPriceYes={market.priceYes} />
           <div className="rounded-xl bg-slate-800/50 border border-slate-700/50 p-5">
@@ -132,6 +136,66 @@ export default function MarketPage() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function CreatorPanel({ market }: { market: import('../types/market').MarketFromAPI }) {
+  const { address } = useAccount();
+  const queryClient = useQueryClient();
+  const { data: claimable, refetch } = useCreatorClaimable(market.id);
+  const { withdraw, isPending, isConfirming, isSuccess, error, reset } = useWithdrawCreatorFunds();
+
+  const isCreator = address?.toLowerCase() === market.creator.toLowerCase();
+  if (!isCreator || !market.resolved || market.creatorWithdrawn) return null;
+
+  const claimableAmount = claimable ? (claimable as bigint) : 0n;
+
+  function handleWithdraw() {
+    reset();
+    withdraw(market.id);
+  }
+
+  // Refresh market data after successful withdrawal
+  if (isSuccess) {
+    queryClient.invalidateQueries({ queryKey: ['market', market.id] });
+    queryClient.invalidateQueries({ queryKey: ['markets'] });
+  }
+
+  return (
+    <div className="rounded-xl bg-indigo-900/20 border border-indigo-700/40 p-5">
+      <h3 className="text-sm font-medium text-indigo-300 mb-1">Creator Earnings</h3>
+      <p className="text-xs text-indigo-400/70 mb-4">
+        As market maker, you earn trading fees + loser funds minus winner payouts.
+      </p>
+
+      <div className="mb-4 p-3 rounded-lg bg-slate-900/50 border border-slate-700/30">
+        <div className="text-xs text-slate-500 mb-1">Claimable</div>
+        <div className="text-xl font-bold text-indigo-300">
+          ${formatUSDC(claimableAmount)} USDC
+        </div>
+      </div>
+
+      {isSuccess ? (
+        <div className="flex items-center gap-2 text-xs text-emerald-400 bg-emerald-900/20 border border-emerald-700/30 rounded-lg px-3 py-2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
+          Withdrawn successfully
+        </div>
+      ) : (
+        <button
+          onClick={handleWithdraw}
+          disabled={isPending || isConfirming || claimableAmount === 0n}
+          className="w-full py-2 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {isPending ? 'Signing...' : isConfirming ? 'Confirming...' : 'Withdraw Earnings'}
+        </button>
+      )}
+
+      {error && (
+        <p className="mt-2 text-xs text-rose-400 bg-rose-900/20 border border-rose-700/30 rounded-lg px-3 py-2">
+          {(error as Error).message.slice(0, 150)}
+        </p>
+      )}
     </div>
   );
 }

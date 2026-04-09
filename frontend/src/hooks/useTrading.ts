@@ -91,3 +91,29 @@ export function useRedeem() {
 
   return { redeem, isPending, isConfirming, isSuccess, error };
 }
+
+export function useCreatorClaimable(marketId: number) {
+  return useReadContract({
+    address: PDX_MARKET_ADDRESS,
+    abi: PDX_MARKET_ABI,
+    functionName: 'getCreatorClaimable',
+    args: [BigInt(marketId)],
+    query: { refetchInterval: 5_000 },
+  });
+}
+
+export function useWithdrawCreatorFunds() {
+  const { writeContract, data: hash, isPending, error, reset } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+
+  function withdraw(marketId: number) {
+    writeContract({
+      address: PDX_MARKET_ADDRESS,
+      abi: PDX_MARKET_ABI,
+      functionName: 'withdrawCreatorFunds',
+      args: [BigInt(marketId)],
+    });
+  }
+
+  return { withdraw, isPending, isConfirming, isSuccess, error, reset };
+}

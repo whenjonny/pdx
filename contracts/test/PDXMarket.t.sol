@@ -62,7 +62,7 @@ contract PDXMarketTest is Test {
         // Check market state
         (
             , , uint256 reserveYes, uint256 reserveNo, uint256 k,
-            uint256 deadline, uint256 lockTime, , , , , , ,
+            uint256 deadline, uint256 lockTime, , , , , , , , ,
         ) = market.markets(marketId);
 
         assertEq(reserveYes, INITIAL_LIQUIDITY / 2);
@@ -168,7 +168,7 @@ contract PDXMarketTest is Test {
         vm.prank(bob);
         market.buyYes(marketId, buyAmount);
 
-        (, , , , , , , , uint256 feesAccrued, , , , , ) = market.markets(marketId);
+        (, , , , , , , , uint256 feesAccrued, , , , , , , ) = market.markets(marketId);
         uint256 expectedFee = (buyAmount * 30) / 10_000; // 0.3%
         assertEq(feesAccrued, expectedFee);
     }
@@ -187,7 +187,7 @@ contract PDXMarketTest is Test {
         vm.prank(bob);
         market.buyYes(marketId, buyAmount);
 
-        (, , , , , , , , uint256 feesAccrued, , , , , ) = market.markets(marketId);
+        (, , , , , , , , uint256 feesAccrued, , , , , , , ) = market.markets(marketId);
         uint256 expectedFee = (buyAmount * 10) / 10_000; // 0.1%
         assertEq(feesAccrued, expectedFee);
     }

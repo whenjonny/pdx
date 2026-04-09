@@ -20,6 +20,8 @@ class MarketResponse(BaseModel):
     priceNo: float
     evidenceCount: int = 0
     category: str = "general"
+    totalRedeemed: int = 0
+    creatorWithdrawn: bool = False
 
 
 class MarketTrade(BaseModel):
@@ -167,7 +169,7 @@ class UserPosition(BaseModel):
 
 
 class UserTransaction(BaseModel):
-    type: str  # "buy_yes", "buy_no", "sell", "redeem", "create_market", "submit_evidence"
+    type: str  # "buy_yes", "buy_no", "sell", "redeem", "create_market", "submit_evidence", "creator_withdraw"
     market_id: int
     timestamp: int  # block timestamp
     block_number: int
