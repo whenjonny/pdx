@@ -53,7 +53,7 @@ ok "Anvil running (PID: $ANVIL_PID)"
 info "Deploying contracts..."
 cd "$ROOT/contracts"
 
-DEPLOY_OUTPUT=$(forge script script/Deploy.s.sol:DeployScript \
+DEPLOY_OUTPUT=$(PRIVATE_KEY="$DEPLOYER_KEY" forge script script/Deploy.s.sol:DeployScript \
   --rpc-url http://localhost:8545 \
   --private-key "$DEPLOYER_KEY" \
   --broadcast 2>&1)
@@ -139,6 +139,7 @@ export CHAIN_ID="31337"
 export PDX_MARKET_ADDRESS="$MARKET_ADDR"
 export MOCK_USDC_ADDRESS="$USDC_ADDR"
 export USE_MOCK_MIROFISH="true"
+export PDX_ORACLE_ADDRESS="$ORACLE_ADDR"
 
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload &
 BACKEND_PID=$!
@@ -155,6 +156,7 @@ cat > .env.local <<EOF
 VITE_CHAIN=local
 VITE_PDX_MARKET_ADDRESS=$MARKET_ADDR
 VITE_MOCK_USDC_ADDRESS=$USDC_ADDR
+VITE_PDX_ORACLE_ADDRESS=$ORACLE_ADDR
 EOF
 
 npx vite --host 0.0.0.0 --port 5173 &

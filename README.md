@@ -4,6 +4,8 @@ NUS FT5004 course project. A decentralized prediction market where AI agents and
 
 Built on Base L2 (Sepolia testnet) using a Constant Product Market Maker (CPMM) AMM.
 
+**Live demo (Base Sepolia):** https://workers-gains-wales-artificial.trycloudflare.com/pdx/
+
 ## Quickstart
 
 ### Prerequisites
@@ -44,7 +46,8 @@ Note the output addresses for MockUSDC, PDXMarket, and PDXOracle.
 
 ```bash
 cd backend
-source .venv/bin/activate
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
 export RPC_URL=http://localhost:8545 CHAIN_ID=31337
 export PDX_MARKET_ADDRESS=0x... MOCK_USDC_ADDRESS=0x... PDX_ORACLE_ADDRESS=0x...
 export USE_MOCK_MIROFISH=true
@@ -55,7 +58,13 @@ uvicorn app.main:app --port 8000 --reload
 
 ```bash
 cd frontend
-echo "VITE_CHAIN=local\nVITE_PDX_MARKET_ADDRESS=0x...\nVITE_MOCK_USDC_ADDRESS=0x..." > .env.local
+npm install
+cat > .env.local <<EOF
+VITE_CHAIN=local
+VITE_PDX_MARKET_ADDRESS=0x...
+VITE_MOCK_USDC_ADDRESS=0x...
+VITE_PDX_ORACLE_ADDRESS=0x...
+EOF
 npm run dev
 ```
 
@@ -68,6 +77,26 @@ npm run dev
 5. **View AI prediction** — MiroFish probability displayed on Market page
 6. **Settle** — `POST /api/markets/settle` with outcome (YES/NO)
 7. **Redeem** — Winners claim USDC on the Market page
+
+## Feature List
+
+| Feature | Description |
+|---------|-------------|
+| Binary prediction markets | YES/NO outcome tokens backed by USDC liquidity |
+| CPMM AMM | Constant-product pricing with on-chain reserve tracking |
+| Evidence-based fee tiers | Submit evidence → fee drops from 0.3% to 0.1% |
+| AI probability estimate | MiroFish multi-agent engine returns market probability |
+| Topic suggestions | AI-generated market question ideas via `/api/predictions/topics/suggest` |
+| Trading lockdown | Markets freeze 30 min before deadline to prevent manipulation |
+| Oracle settlement | Owner settles market; winning tokens redeem 1:1 for USDC |
+| Creator withdrawal | Market creator reclaims residual USDC liquidity after settlement |
+| IPFS evidence storage | Pinata-backed evidence upload with content retrieval |
+| USDC faucet | On-demand test USDC minting for local and testnet use |
+| Agent SDK | Python SDK for programmatic trading, evidence, and local compute |
+| Monte Carlo compute | Local probability estimation via simulation (no external call) |
+| MetaMask integration | wagmi + viem frontend wallet connection |
+| Platform stats | Aggregate TVL, volume, and market count via `/api/stats` |
+| User portfolio | Per-address position, transaction history, and P&L summary |
 
 ## Repository Layout
 
@@ -134,16 +163,47 @@ Trading is frozen 30 minutes before the market deadline to prevent last-second m
 
 ## API Reference
 
+### Markets
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/markets` | List all markets |
 | GET | `/api/markets/{id}` | Get market details |
+| GET | `/api/markets/{id}/trades` | Trade history for a market |
 | POST | `/api/markets` | Create a new market |
-| POST | `/api/markets/settle` | Settle a market |
+| PUT | `/api/markets/{id}/metadata` | Update market metadata (title, description) |
+| POST | `/api/markets/settle` | Settle a market (oracle owner only) |
 | POST | `/api/markets/mint-usdc` | Mint test USDC |
+| GET | `/api/stats` | Platform-wide stats (TVL, volume, market count) |
+
+### Evidence
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
 | GET | `/api/evidence/{marketId}` | List evidence for a market |
-| POST | `/api/evidence/upload` | Upload evidence to IPFS |
-| GET | `/api/predictions/{marketId}` | Get AI prediction |
+| POST | `/api/evidence/upload` | Upload evidence (URL/text) to IPFS |
+| POST | `/api/evidence/upload/v2` | Upload evidence with file attachment support |
+| GET | `/api/evidence/{marketId}/{index}/content` | Retrieve evidence content by index |
+
+### Predictions
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/predictions/{marketId}` | Get AI probability estimate (MiroFish) |
+| GET | `/api/predictions/topics/suggest` | AI-generated market topic suggestions |
+
+### Users
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/users/{address}/positions` | Open positions for a wallet address |
+| GET | `/api/users/{address}/transactions` | Transaction history for a wallet address |
+| GET | `/api/users/{address}/summary` | Portfolio summary (P&L, trade count) |
+
+### Misc
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
 | GET | `/api/health` | Health check |
 
 Full interactive docs: http://localhost:8000/docs
