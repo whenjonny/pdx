@@ -24,9 +24,9 @@ export function formatAddress(address: string): string {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
-export function formatCountdown(deadline: number): string {
-  const now = Math.floor(Date.now() / 1000);
-  const diff = deadline - now;
+export function formatCountdown(deadline: number, now?: number): string {
+  const t = now ?? Math.floor(Date.now() / 1000);
+  const diff = deadline - t;
   if (diff <= 0) return 'Expired';
   const days = Math.floor(diff / 86400);
   const hours = Math.floor((diff % 86400) / 3600);
@@ -36,6 +36,7 @@ export function formatCountdown(deadline: number): string {
   return `${mins}m`;
 }
 
-export function isLocked(lockTime: number): boolean {
-  return Math.floor(Date.now() / 1000) >= lockTime;
+export function isLocked(lockTime: number, now?: number): boolean {
+  const t = now ?? Math.floor(Date.now() / 1000);
+  return t >= lockTime;
 }

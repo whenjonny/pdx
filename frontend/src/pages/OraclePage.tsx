@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAccount, useConnect, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useConnect, useReadContract, useWriteContract, useWaitForTransactionReceipt, useBlock } from 'wagmi';
 import { useMarkets } from '../hooks/useMarkets';
 import { formatUSDC } from '../lib/format';
 import { PDX_MARKET_ADDRESS, PDX_MARKET_ABI } from '../config/contracts';
@@ -31,7 +31,9 @@ export default function OraclePage() {
   const isOracle = address && oracleOwner &&
     (address.toLowerCase() === (oracleOwner as string).toLowerCase());
 
-  const now = Math.floor(Date.now() / 1000);
+  // Use on-chain block timestamp so time-warped local chains work correctly
+  const { data: latestBlock } = useBlock();
+  const now = latestBlock ? Number(latestBlock.timestamp) : Math.floor(Date.now() / 1000);
 
   const pendingMarkets = (markets ?? []).filter(
     m => !m.resolved && m.deadline <= now

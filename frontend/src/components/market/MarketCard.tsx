@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import type { MarketFromAPI } from '../../types/market';
 import { formatUSDC, formatCountdown, formatAddress, isLocked } from '../../lib/format';
+import { useChainTime } from '../../hooks/useChainTime';
 import PriceBar from './PriceBar';
 
 interface MarketCardProps {
@@ -9,8 +10,9 @@ interface MarketCardProps {
 }
 
 export default function MarketCard({ market, isOwner }: MarketCardProps) {
-  const expired = Date.now() / 1000 >= market.deadline;
-  const locked = isLocked(market.lockTime);
+  const now = useChainTime();
+  const expired = now >= market.deadline;
+  const locked = isLocked(market.lockTime, now);
   const yesPercent = Math.round(market.priceYes * 100);
 
   return (
@@ -48,7 +50,7 @@ export default function MarketCard({ market, isOwner }: MarketCardProps) {
           </span>
         )}
         {!market.resolved && !expired && (
-          <span className="text-xs text-slate-500 ml-auto">{formatCountdown(market.deadline)}</span>
+          <span className="text-xs text-slate-500 ml-auto">{formatCountdown(market.deadline, now)}</span>
         )}
       </div>
 

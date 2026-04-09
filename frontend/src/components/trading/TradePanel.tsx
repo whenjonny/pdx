@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
+import { useChainTime } from '../../hooks/useChainTime';
 import { useBuyYes, useBuyNo, useApproveUSDC, useAllowance } from '../../hooks/useTrading';
 import { useUSDCBalance } from '../../hooks/useMockUSDC';
 import { useHasEvidence } from '../../hooks/useEvidence';
@@ -24,10 +25,11 @@ export default function TradePanel({ market }: TradePanelProps) {
   const buyNo = useBuyNo();
   const activeBuy = side === 'YES' ? buyYes : buyNo;
 
+  const chainNow = useChainTime();
   const parsedAmount = parseUSDC(amount);
   const needsApproval = allowance !== undefined && parsedAmount > (allowance as bigint);
-  const isLocked = Date.now() / 1000 >= market.lockTime;
-  const isExpired = Date.now() / 1000 >= market.deadline;
+  const isLocked = chainNow >= market.lockTime;
+  const isExpired = chainNow >= market.deadline;
   const canTrade = !isLocked && !isExpired && !market.resolved && parsedAmount > 0n;
 
   useEffect(() => {
