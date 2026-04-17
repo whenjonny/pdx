@@ -3,6 +3,7 @@
 from pdx_backtest.strategies.base import Strategy, StrategyResult, Trade
 from pdx_backtest.strategies.cross_asset import CrossAssetArb
 from pdx_backtest.strategies.cross_platform import CrossPlatformArb
+from pdx_backtest.strategies.cross_venue_arb import CrossVenueArb
 from pdx_backtest.strategies.longshot_bias import LongshotBiasExploiter
 from pdx_backtest.strategies.lvr_arb import LVRArb
 from pdx_backtest.strategies.market_making import BayesianMarketMaker
@@ -19,6 +20,7 @@ __all__ = [
     "BayesianMarketMaker",
     "CrossAssetArb",
     "CrossPlatformArb",
+    "CrossVenueArb",
     "LongshotBiasExploiter",
     "LVRArb",
     "NegRiskRebalancer",

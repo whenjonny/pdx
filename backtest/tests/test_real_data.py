@@ -11,6 +11,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import numpy as np
 import pytest
 
+from pdx_backtest.cross_venue_data import (
+    _generate_realistic_cross_venue_path,
+    MatchedMarket,
+)
 from pdx_backtest.data import MarketPath, MultiOutcomeSnapshot, CrossPlatformPath
 from pdx_backtest.exchange_connector import (
     LiveNegRiskRebalancer,
@@ -220,3 +224,78 @@ def test_live_stat_arb_fires_on_deviation():
     # Now price drops to 0.40 → edge = 0.50 - 0.40 = 0.10 > 0.03
     strat.on_tick(pf, {"tok1": 0.40}, [m], [], step=20)
     assert len(pf.trades) > 0
+
+
+# ---------------------------------------------------------------------------
+# Cross-venue arbitrage (Polymarket ↔ predict.fun)
+# ---------------------------------------------------------------------------
+
+
+def test_cross_venue_synthetic_path_basic():
+    path = _generate_realistic_cross_venue_path(n_steps=200, seed=42)
+    assert isinstance(path, CrossPlatformPath)
+    assert len(path.timestamps) == 200
+    assert path.price_a.min() > 0
+    assert path.price_b.min() > 0
+    assert path.outcome in (0, 1)
+
+
+def test_cross_venue_synthetic_paths_are_deterministic():
+    p1 = _generate_realistic_cross_venue_path(n_steps=100, seed=7)
+    p2 = _generate_realistic_cross_venue_path(n_steps=100, seed=7)
+    np.testing.assert_array_equal(p1.price_a, p2.price_a)
+    np.testing.assert_array_equal(p1.price_b, p2.price_b)
+
+
+def test_cross_venue_synthetic_path_spread_magnitude():
+    path = _generate_realistic_cross_venue_path(n_steps=1000, seed=99)
+    spreads = np.abs(path.price_b - path.price_a)
+    median_spread = float(np.median(spreads))
+    assert 0.005 < median_spread < 0.06
+
+
+def test_cross_venue_estimate_opportunity():
+    from pdx_backtest.strategies.cross_venue_arb import estimate_cross_venue_opportunity
+
+    net, direction = estimate_cross_venue_opportunity(0.50, 0.56)
+    assert net > 0
+    assert direction == "buy_poly"
+
+    net2, direction2 = estimate_cross_venue_opportunity(0.56, 0.50)
+    assert net2 > 0
+    assert direction2 == "buy_predict"
+
+
+def test_cross_venue_strategy_runs():
+    from pdx_backtest.strategies.cross_venue_arb import CrossVenueArb
+
+    paths = [_generate_realistic_cross_venue_path(seed=i) for i in range(5)]
+    cv = CrossVenueArb(min_spread=0.02, predict_fee_bps=150.0)
+    sr = cv.run(paths)
+    assert sr.name == "cross_venue_arb_poly_predict"
+    assert sr.n_trades >= 0
+    assert len(sr.pnl_per_trade) == sr.n_trades
+
+
+def test_cross_venue_strategy_max_concurrent():
+    from pdx_backtest.strategies.cross_venue_arb import CrossVenueArb
+
+    paths = [_generate_realistic_cross_venue_path(seed=0)]
+    cv = CrossVenueArb(min_spread=0.001, max_concurrent=3)
+    sr = cv.run(paths)
+    assert sr.n_trades <= 3
+
+
+def test_cross_venue_trade_metadata():
+    from pdx_backtest.strategies.cross_venue_arb import CrossVenueArb
+
+    paths = [_generate_realistic_cross_venue_path(seed=42)]
+    cv = CrossVenueArb(min_spread=0.01, predict_fee_bps=150.0)
+    sr = cv.run(paths)
+    if sr.n_trades > 0:
+        t = sr.trades[0]
+        assert "direction" in t.meta
+        assert "buy_venue" in t.meta
+        assert "sell_venue" in t.meta
+        assert t.meta["buy_venue"] in ("polymarket", "predict.fun")
+        assert t.meta["sell_venue"] in ("polymarket", "predict.fun")

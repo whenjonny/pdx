@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import numpy as np
 
 from pdx_backtest.engine import BacktestEngine
+from pdx_backtest.cross_venue_data import fetch_cross_venue_paths
 from pdx_backtest.historical_data import (
     fetch_binary_market_paths,
     fetch_cross_platform_proxy_paths,
@@ -30,6 +31,7 @@ from pdx_backtest.historical_data import (
 from pdx_backtest.strategies import (
     CrossAssetArb,
     CrossPlatformArb,
+    CrossVenueArb,
     LongshotBiasExploiter,
     NegRiskRebalancer,
     SingleBinaryRebalancer,
@@ -75,6 +77,11 @@ def run_real_backtest(
         n_markets=min(20, n_markets), fidelity=5,
     )
     logger.info("Fetched %d cross-platform paths", len(cross_plat_paths))
+
+    cross_venue_paths = fetch_cross_venue_paths(
+        n_markets=min(20, n_markets), fidelity=5,
+    )
+    logger.info("Fetched %d cross-venue paths (Poly↔predict.fun)", len(cross_venue_paths))
 
     # ------------------------------------------------------------------
     # Phase 2: Backtest strategies on real data
@@ -186,7 +193,22 @@ def run_real_backtest(
             logger.info("  Cross-Platform: %d trades, total PnL $%.2f",
                          sr.n_trades, float(sr.pnl_per_trade.sum()))
 
-    # --- Strategy 6: Longshot Bias ---
+    # --- Strategy 6: Cross-Venue Arb (Polymarket ↔ predict.fun) ---
+    if should_run("cross_venue") and cross_venue_paths:
+        logger.info("Running Cross-Venue Arb (Poly↔predict.fun) on %d paths…", len(cross_venue_paths))
+        cv = CrossVenueArb(
+            poly_fee_bps=0.0, predict_fee_bps=150.0,
+            min_spread=0.02, capital_per_trade=1000.0,
+            settlement_risk_bps=50.0,
+        )
+        sr = cv.run(cross_venue_paths, seed=42)
+        if sr.n_trades > 0:
+            br = engine.evaluate(sr, capital_base=capital_base)
+            results["cross_venue"] = br
+            logger.info("  Cross-Venue: %d trades, total PnL $%.2f",
+                         sr.n_trades, float(sr.pnl_per_trade.sum()))
+
+    # --- Strategy 7: Longshot Bias ---
     if should_run("longshot") and binary_paths:
         logger.info("Running Longshot Bias Exploiter on %d markets…", len(binary_paths))
         lb = LongshotBiasExploiter(
