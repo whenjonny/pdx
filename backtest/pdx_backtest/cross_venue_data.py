@@ -274,7 +274,7 @@ def _build_cross_platform_path(
 
     # Try loading from cache
     cached = _load_cache(cache_key) if use_cache else None
-    if cached is not None:
+    if isinstance(cached, dict):
         try:
             return CrossPlatformPath(
                 timestamps=np.array(cached["timestamps"], dtype=float),
