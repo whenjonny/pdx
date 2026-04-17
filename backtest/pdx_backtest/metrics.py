@@ -108,7 +108,7 @@ def compute_metrics(
     downside = returns[returns < 0]
     dd_std = float(np.std(downside, ddof=1)) if len(downside) > 1 else 0.0
     sortino = (
-        float(np.mean(excess) / dd_std * np.sqrt(periods_per_year)) if dd_std > 0 else 0.0
+        float(np.mean(excess) / dd_std * np.sqrt(periods_per_year)) if dd_std > 1e-10 else 0.0
     )
 
     # Max drawdown on dollar equity curve.
