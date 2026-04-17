@@ -121,8 +121,8 @@ def run_real_backtest(
     # --- Strategy 2: Single Binary Rebalancer ---
     if should_run("single_binary") and binary_paths:
         logger.info("Running Single Binary Rebalancer on %d markets…", len(binary_paths))
-        sb = SingleBinaryRebalancer(threshold=0.005, taker_fee_bps=0.0,
-                                    capital_per_trade=500.0, no_noise_std=0.005)
+        sb = SingleBinaryRebalancer(threshold=0.02, taker_fee_bps=0.0,
+                                    capital_per_trade=500.0, no_noise_std=0.001)
         all_trades = []
         all_pnl = []
         all_roic = []
@@ -152,71 +152,33 @@ def run_real_backtest(
     # --- Strategy 3: Statistical Arbitrage ---
     if should_run("stat_arb") and binary_paths:
         logger.info("Running Statistical Arb on %d markets…", len(binary_paths))
-        sa = StatisticalArb(lookback=20, entry_z=1.5, exit_z=0.5,
-                            capital_per_trade=500.0, half_kelly_mult=0.5)
-        all_trades = []
-        all_pnl = []
-        all_roic = []
-        for path in binary_paths:
-            sr = sa.run(path, seed=42)
-            all_trades.extend(sr.trades)
-            all_pnl.extend(sr.pnl_per_trade.tolist())
-            all_roic.extend(sr.returns.tolist())
-
-        if all_trades:
-            from pdx_backtest.strategies.base import StrategyResult
-            combined = StrategyResult(
-                name="stat_arb",
-                trades=all_trades,
-                equity_curve=np.cumsum([0.0] + all_pnl) / capital_base,
-                returns=np.array(all_roic),
-                pnl_per_trade=np.array(all_pnl),
-                capital_deployed=sum(t.notional for t in all_trades),
-                capital_lockup_period_steps=len(all_trades),
-                notes={"n_markets": len(binary_paths), "data_source": "polymarket_real"},
-            )
-            br = engine.evaluate(combined, capital_base=capital_base)
+        sa = StatisticalArb(min_edge=0.02, taker_fee_bps=120.0, bankroll=10_000.0)
+        sr = sa.run(binary_paths, seed=42)
+        if sr.n_trades > 0:
+            br = engine.evaluate(sr, capital_base=capital_base)
             results["stat_arb"] = br
             logger.info("  Stat Arb: %d trades, total PnL $%.2f",
-                         len(all_trades), sum(all_pnl))
+                         sr.n_trades, float(sr.pnl_per_trade.sum()))
 
     # --- Strategy 4: Time Arbitrage ---
     if should_run("time_arb") and binary_paths:
-        logger.info("Running Time Arb on %d markets…", len(binary_paths))
         long_dated = [p for p in binary_paths if len(p) >= 200]
         if long_dated:
-            ta = TimeArb(fair_prob_floor=0.75, discount_rate=0.04,
-                         capital_per_trade=2000.0)
-            all_trades = []
-            all_pnl = []
-            all_roic = []
-            for path in long_dated:
-                sr = ta.run(path)
-                all_trades.extend(sr.trades)
-                all_pnl.extend(sr.pnl_per_trade.tolist())
-                all_roic.extend(sr.returns.tolist())
-
-            if all_trades:
-                from pdx_backtest.strategies.base import StrategyResult
-                combined = StrategyResult(
-                    name="time_arb",
-                    trades=all_trades,
-                    equity_curve=np.cumsum([0.0] + all_pnl) / capital_base,
-                    returns=np.array(all_roic),
-                    pnl_per_trade=np.array(all_pnl),
-                    capital_deployed=sum(t.notional for t in all_trades),
-                    capital_lockup_period_steps=len(all_trades),
-                    notes={"n_markets": len(long_dated), "data_source": "polymarket_real"},
-                )
-                br = engine.evaluate(combined, capital_base=capital_base)
+            logger.info("Running Time Arb on %d long-dated markets…", len(long_dated))
+            ta = TimeArb(fair_prob_floor=0.80, risk_free=0.04,
+                         capital_per_market=2000.0)
+            sr = ta.run(long_dated, seed=42)
+            if sr.n_trades > 0:
+                br = engine.evaluate(sr, capital_base=capital_base)
                 results["time_arb"] = br
                 logger.info("  Time Arb: %d trades, total PnL $%.2f",
-                             len(all_trades), sum(all_pnl))
+                             sr.n_trades, float(sr.pnl_per_trade.sum()))
 
     # --- Strategy 5: Cross-Platform Arb ---
     if should_run("cross_platform") and cross_plat_paths:
         logger.info("Running Cross-Platform Arb on %d paths…", len(cross_plat_paths))
-        cp = CrossPlatformArb(min_spread=0.02, capital_per_trade=1000.0)
+        cp = CrossPlatformArb(min_spread=0.03, capital_per_trade=1000.0,
+                              kalshi_fee_bps=120.0)
         sr = cp.run(cross_plat_paths, seed=42)
         if sr.n_trades > 0:
             br = engine.evaluate(sr, capital_base=capital_base)

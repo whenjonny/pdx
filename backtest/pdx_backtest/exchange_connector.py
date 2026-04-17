@@ -211,13 +211,20 @@ class LiveNegRiskRebalancer(LiveStrategy):
     name = "live_negrisk"
 
     def __init__(self, threshold: float = 0.02, capital_per_trade: float = 500.0,
-                 taker_fee_bps: float = 0.0) -> None:
+                 taker_fee_bps: float = 0.0, max_positions: int = 20) -> None:
         self.threshold = threshold
         self.capital_per_trade = capital_per_trade
         self.fee = taker_fee_bps / 10_000.0
+        self.max_positions = max_positions
+        self._traded_events: set[str] = set()
 
     def on_tick(self, portfolio, prices, markets, events, step):
+        n_open = sum(1 for p in portfolio.positions if p.market_slug.startswith("sim-event"))
+        if n_open >= self.max_positions:
+            return
         for event in events:
+            if event.slug in self._traded_events:
+                continue
             if len(event.markets) < 3:
                 continue
             yes_prices = []
@@ -240,6 +247,7 @@ class LiveNegRiskRebalancer(LiveStrategy):
                 edge = 1.0 - sum_cost
                 units = self.capital_per_trade / sum_cost
                 expected_pnl = units * edge
+                self._traded_events.add(event.slug)
                 for tid, p in zip(token_ids, yes_prices):
                     notional = p * units
                     portfolio.open_position(
@@ -263,13 +271,22 @@ class LiveSingleBinaryRebalancer(LiveStrategy):
     name = "live_single_binary"
 
     def __init__(self, threshold: float = 0.005, capital_per_trade: float = 500.0,
-                 taker_fee_bps: float = 0.0) -> None:
+                 taker_fee_bps: float = 0.0, max_positions: int = 10) -> None:
         self.threshold = threshold
         self.capital_per_trade = capital_per_trade
         self.fee = taker_fee_bps / 10_000.0
+        self.max_positions = max_positions
+        self._traded_markets: set[str] = set()
 
     def on_tick(self, portfolio, prices, markets, events, step):
+        n_open = sum(1 for p in portfolio.positions
+                     if any(t.strategy == self.name and t.market_slug == p.market_slug
+                            for t in portfolio.trades[-50:]))
+        if len(self._traded_markets) >= self.max_positions:
+            return
         for m in markets:
+            if m.slug in self._traded_markets:
+                continue
             if not m.is_binary or len(m.token_ids) < 2:
                 continue
             yes_tid, no_tid = m.token_ids[0], m.token_ids[1]
@@ -281,6 +298,7 @@ class LiveSingleBinaryRebalancer(LiveStrategy):
             total_cost = (yes_p + no_p) * (1.0 + self.fee)
             if total_cost < 1.0 - self.threshold:
                 edge = 1.0 - total_cost
+                self._traded_markets.add(m.slug)
                 portfolio.open_position(
                     token_id=yes_tid,
                     market_slug=m.slug,
@@ -351,8 +369,91 @@ class LiveStatArb(LiveStrategy):
 # ---------------------------------------------------------------------------
 
 
+class _SimulatedPriceFeed:
+    """Generates evolving prices when exchange APIs are unreachable."""
+
+    def __init__(self, n_binary: int = 30, n_event_outcomes: int = 5,
+                 n_events: int = 4, seed: int = 42) -> None:
+        self.rng = np.random.default_rng(seed)
+        self._binary_markets: list[MarketInfo] = []
+        self._events: list[EventInfo] = []
+        self._prices: dict[str, float] = {}
+        self._vols: dict[str, float] = {}
+
+        # Create simulated binary markets
+        for i in range(n_binary):
+            yes_tid = f"sim_yes_{i}"
+            no_tid = f"sim_no_{i}"
+            p = float(np.clip(self.rng.uniform(0.10, 0.90), 0.01, 0.99))
+            self._prices[yes_tid] = p
+            self._prices[no_tid] = float(np.clip(1.0 - p + self.rng.normal(0, 0.004),
+                                                  0.01, 0.99))
+            self._vols[yes_tid] = self.rng.uniform(0.002, 0.008)
+            self._vols[no_tid] = self._vols[yes_tid]
+            self._binary_markets.append(MarketInfo(
+                condition_id=f"cond_{i}", question=f"Simulated market {i}",
+                slug=f"sim-market-{i}", outcomes=["Yes", "No"],
+                outcome_prices=[p, 1 - p], token_ids=[yes_tid, no_tid],
+                volume=100_000, liquidity=50_000,
+                active=True, closed=False, group_item_title=f"Market {i}",
+                end_date="2026-12-31",
+            ))
+
+        # Create simulated multi-outcome events
+        for ev_i in range(n_events):
+            n_out = self.rng.integers(3, n_event_outcomes + 1)
+            probs = self.rng.dirichlet(np.ones(n_out) * 2)
+            ev_markets = []
+            for j in range(n_out):
+                tid = f"sim_ev{ev_i}_out{j}"
+                p = float(np.clip(probs[j], 0.01, 0.99))
+                self._prices[tid] = p
+                self._vols[tid] = self.rng.uniform(0.001, 0.005)
+                ev_markets.append(MarketInfo(
+                    condition_id=f"cond_ev{ev_i}_{j}",
+                    question=f"Event {ev_i} outcome {j}",
+                    slug=f"sim-event-{ev_i}-out-{j}",
+                    outcomes=["Yes", "No"],
+                    outcome_prices=[p, 1 - p],
+                    token_ids=[tid],
+                    volume=50_000, liquidity=25_000,
+                    active=True, closed=False,
+                    group_item_title=f"Outcome {j}",
+                    end_date="2026-12-31",
+                ))
+            self._events.append(EventInfo(
+                slug=f"sim-event-{ev_i}",
+                title=f"Simulated Event {ev_i}",
+                markets=ev_markets,
+            ))
+
+    def step(self) -> dict[str, float]:
+        """Advance prices by one tick and return current prices."""
+        for tid in self._prices:
+            vol = self._vols.get(tid, 0.005)
+            shock = float(self.rng.normal(0, vol))
+            self._prices[tid] = float(np.clip(
+                self._prices[tid] + shock, 0.005, 0.995))
+        return dict(self._prices)
+
+    @property
+    def markets(self) -> list[MarketInfo]:
+        return self._binary_markets
+
+    @property
+    def events(self) -> list[EventInfo]:
+        return self._events
+
+    @property
+    def token_ids(self) -> list[str]:
+        return list(self._prices.keys())
+
+
 class ExchangeConnector:
-    """Connects to Polymarket for live paper trading via REST polling."""
+    """Connects to Polymarket for live paper trading via REST polling.
+
+    Falls back to simulated price feed if the exchange API is unreachable.
+    """
 
     def __init__(
         self,
@@ -380,27 +481,47 @@ class ExchangeConnector:
         self._step = 0
         self._running = False
         self._log: list[dict] = []
+        self._sim_feed: Optional[_SimulatedPriceFeed] = None
+        self._use_sim = False
 
     def _refresh_markets(self) -> None:
         """Refresh market and event listings."""
-        logger.info("Refreshing market listings…")
-        self._markets = fetch_markets(
-            limit=self.max_markets, active=True, closed=False,
-            order="volume", ascending=False,
-        )
-        self._events = fetch_multi_outcome_events(min_markets=3, limit=20)
+        if self._use_sim:
+            return
 
-        self._token_ids = []
-        for m in self._markets:
-            self._token_ids.extend(m.token_ids)
-        logger.info("Tracking %d markets, %d events, %d tokens",
-                     len(self._markets), len(self._events), len(self._token_ids))
+        logger.info("Refreshing market listings…")
+        try:
+            self._markets = fetch_markets(
+                limit=self.max_markets, active=True, closed=False,
+                order="volume", ascending=False,
+            )
+            self._events = fetch_multi_outcome_events(min_markets=3, limit=20)
+
+            self._token_ids = []
+            for m in self._markets:
+                self._token_ids.extend(m.token_ids)
+            logger.info("Tracking %d markets, %d events, %d tokens",
+                         len(self._markets), len(self._events), len(self._token_ids))
+        except Exception as exc:
+            if self._sim_feed is None:
+                logger.warning("API unreachable (%s) — switching to simulated feed", exc)
+                self._sim_feed = _SimulatedPriceFeed(
+                    n_binary=min(30, self.max_markets), seed=42)
+                self._use_sim = True
+                self._markets = self._sim_feed.markets
+                self._events = self._sim_feed.events
+                self._token_ids = self._sim_feed.token_ids
+                logger.info("Simulated: %d markets, %d events, %d tokens",
+                             len(self._markets), len(self._events),
+                             len(self._token_ids))
 
     def _fetch_prices(self) -> dict[str, float]:
         """Fetch current midpoints for all tracked tokens."""
+        if self._use_sim and self._sim_feed:
+            return self._sim_feed.step()
+
         if not self._token_ids:
             return {}
-        # Fetch in batches of 50 (API limit)
         prices: dict[str, float] = {}
         for i in range(0, len(self._token_ids), 50):
             batch = self._token_ids[i:i + 50]
@@ -409,6 +530,15 @@ class ExchangeConnector:
                 prices.update(batch_prices)
             except Exception as exc:
                 logger.warning("Price fetch failed: %s", exc)
+                if not self._use_sim and self._sim_feed is None:
+                    logger.warning("Switching to simulated feed")
+                    self._sim_feed = _SimulatedPriceFeed(
+                        n_binary=min(30, self.max_markets), seed=42)
+                    self._use_sim = True
+                    self._markets = self._sim_feed.markets
+                    self._events = self._sim_feed.events
+                    self._token_ids = self._sim_feed.token_ids
+                    return self._sim_feed.step()
         return prices
 
     def _tick(self, prices: dict[str, float]) -> None:
@@ -482,9 +612,19 @@ class ExchangeConnector:
             await asyncio.sleep(self.poll_interval)
 
         self._running = False
+
+        # Force-close all open positions at final prices
+        prices = self._fetch_prices() if self._token_ids else {}
+        for i in range(len(self.portfolio.positions) - 1, -1, -1):
+            pos = self.portfolio.positions[i]
+            p = prices.get(pos.token_id, pos.entry_price)
+            self.portfolio.close_position(i, p, strategy="session_end_close")
+        if prices:
+            self.portfolio.record_equity(prices)
+
         elapsed = time.time() - start_time
-        logger.info("Paper trading complete after %.1f hours, %d steps",
-                     elapsed / 3600, self._step)
+        logger.info("Paper trading complete after %.1f hours, %d steps, %d positions closed at session end",
+                     elapsed / 3600, self._step, len(self.portfolio.positions))
 
         return self._build_report()
 

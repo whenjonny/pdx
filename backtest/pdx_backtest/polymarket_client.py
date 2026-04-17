@@ -39,7 +39,7 @@ def _session() -> requests.Session:
 
 
 def _get(url: str, params: dict | None = None,
-         retries: int = 3, backoff: float = 2.0) -> Any:
+         retries: int = 2, backoff: float = 1.0) -> Any:
     for attempt in range(retries):
         try:
             r = _session().get(url, params=params, timeout=30)
