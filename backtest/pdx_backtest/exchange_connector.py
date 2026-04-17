@@ -677,6 +677,169 @@ class ExchangeConnector:
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Live cross-venue arbitrage (Polymarket ↔ predict.fun)
+# ---------------------------------------------------------------------------
+
+
+class LiveCrossVenueArb(LiveStrategy):
+    """Paper-trade cross-venue arb between Polymarket and predict.fun.
+
+    On each tick the strategy receives two price dicts:
+      - ``prices``  — Polymarket midpoints (passed by ExchangeConnector)
+      - The predict.fun prices are stored in ``self._predict_prices``
+        and updated externally via :meth:`update_predict_prices`.
+
+    When the spread exceeds ``min_spread`` after fees + settlement risk
+    the strategy opens a hedged position (buy cheap venue / sell expensive
+    venue).
+    """
+
+    name = "live_cross_venue"
+
+    def __init__(
+        self,
+        min_spread: float = 0.02,
+        capital_per_trade: float = 1_000.0,
+        poly_fee_bps: float = 0.0,
+        predict_fee_bps: float = 150.0,
+        settlement_risk_bps: float = 50.0,
+        max_positions: int = 10,
+    ) -> None:
+        self.min_spread = min_spread
+        self.capital_per_trade = capital_per_trade
+        self.poly_fee = poly_fee_bps / 10_000.0
+        self.predict_fee = predict_fee_bps / 10_000.0
+        self.settlement_cost = settlement_risk_bps / 10_000.0
+        self.max_positions = max_positions
+        self._predict_prices: dict[str, float] = {}
+        self._traded_markets: set[str] = set()
+
+    def update_predict_prices(self, prices: dict[str, float]) -> None:
+        self._predict_prices = prices
+
+    def _net_spread(self, buy_p: float, sell_p: float,
+                    buy_fee: float, sell_fee: float) -> float:
+        gross = sell_p - buy_p
+        cost = buy_p * buy_fee + sell_p * sell_fee + self.settlement_cost
+        return gross - cost
+
+    def on_tick(self, portfolio, prices, markets, events, step):
+        if len(self._traded_markets) >= self.max_positions:
+            return
+        if not self._predict_prices:
+            return
+
+        for m in markets:
+            if m.slug in self._traded_markets:
+                continue
+            if not m.is_binary or not m.token_ids:
+                continue
+
+            tid = m.token_ids[0]
+            poly_p = prices.get(tid, 0)
+            predict_p = self._predict_prices.get(tid, 0)
+            if poly_p <= 0 or predict_p <= 0:
+                continue
+
+            # Direction 1: buy on Polymarket, sell on predict.fun
+            net_buy_poly = self._net_spread(
+                poly_p, predict_p, self.poly_fee, self.predict_fee)
+
+            # Direction 2: buy on predict.fun, sell on Polymarket
+            net_buy_predict = self._net_spread(
+                predict_p, poly_p, self.predict_fee, self.poly_fee)
+
+            if net_buy_poly > self.min_spread and net_buy_poly >= net_buy_predict:
+                direction = "buy_poly_sell_predict"
+                effective = net_buy_poly
+                buy_price = poly_p
+            elif net_buy_predict > self.min_spread:
+                direction = "buy_predict_sell_poly"
+                effective = net_buy_predict
+                buy_price = predict_p
+            else:
+                continue
+
+            units = self.capital_per_trade / buy_price if buy_price > 0 else 0
+            expected_pnl = units * effective
+
+            self._traded_markets.add(m.slug)
+
+            # Cross-venue arb is a simultaneous hedge: buy on cheap venue,
+            # sell on expensive venue.  Profit is locked at entry, so we
+            # record it as an immediate open+close round-trip.
+            meta = {
+                "direction": direction,
+                "poly_price": poly_p,
+                "predict_price": predict_p,
+                "effective_spread": effective,
+                "expected_pnl": expected_pnl,
+            }
+            open_trade = portfolio.open_position(
+                token_id=tid,
+                market_slug=m.slug,
+                side="yes",
+                price=buy_price,
+                notional=self.capital_per_trade,
+                strategy=self.name,
+                meta=meta,
+            )
+            if open_trade is not None:
+                # Immediately close at the arb profit price
+                arb_exit_price = buy_price + effective
+                idx = len(portfolio.positions) - 1
+                portfolio.close_position(
+                    idx, arb_exit_price, strategy=self.name, meta=meta,
+                )
+
+
+class _SimulatedCrossVenueFeed:
+    """Generates paired Polymarket + predict.fun prices for the same markets.
+
+    predict.fun prices lag Polymarket by 1-3 ticks and carry a persistent
+    spread (~1.5 cents) plus wider spikes on ~8% of ticks.
+    """
+
+    def __init__(self, base_feed: _SimulatedPriceFeed, seed: int = 99) -> None:
+        self.base = base_feed
+        self.rng = np.random.default_rng(seed)
+        self._predict_prices: dict[str, float] = {}
+        self._history: dict[str, list[float]] = {}
+        self._lag: dict[str, int] = {}
+        self._spread_sign: dict[str, float] = {}
+
+        for tid in base_feed.token_ids:
+            self._lag[tid] = int(self.rng.integers(1, 4))
+            self._spread_sign[tid] = self.rng.choice([-1.0, 1.0])
+            self._history[tid] = []
+            self._predict_prices[tid] = base_feed._prices.get(tid, 0.5)
+
+    def step(self, poly_prices: dict[str, float]) -> dict[str, float]:
+        """Given fresh Polymarket prices, produce lagged predict.fun prices."""
+        for tid, p in poly_prices.items():
+            hist = self._history.setdefault(tid, [])
+            hist.append(p)
+
+            lag = self._lag.get(tid, 2)
+            if len(hist) > lag:
+                base_p = hist[-lag]
+            else:
+                base_p = p
+
+            sign = self._spread_sign.get(tid, 1.0)
+            spread = self.rng.normal(sign * 0.015, 0.004)
+
+            if self.rng.random() < 0.08:
+                spread = self.rng.choice([-1.0, 1.0]) * self.rng.uniform(0.03, 0.05)
+
+            noise = self.rng.normal(0, 0.005)
+            self._predict_prices[tid] = float(
+                np.clip(base_p + spread + noise, 0.005, 0.995))
+
+        return dict(self._predict_prices)
+
+
 class WebSocketConnector:
     """Real-time WebSocket feed from Polymarket CLOB."""
 
