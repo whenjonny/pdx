@@ -59,6 +59,24 @@ class ArbConfig:
     daily_loss_limit_usd: float = 5_000.0
     scan_interval_s: float = 10.0
 
+    # Leg failure hedging
+    hedge_retry_slippage_bps: float = 100.0
+    max_naked_exposure_usd: float = 5_000.0
+
+    # Volume / liquidity sizing
+    min_market_volume_usd: float = 10_000.0
+    liquidity_scale_factor: float = 0.1
+    thin_market_size_cap_usd: float = 500.0
+
+    # Kelly criterion
+    kelly_win_prob_base: float = 0.95
+    kelly_friction_haircut: float = 0.10
+
+    # Adverse selection
+    adverse_lookback: int = 20
+    adverse_toxicity_threshold: float = 0.4
+    adverse_blacklist_duration_s: float = 3600.0
+
     polymarket: PolymarketConfig = None  # type: ignore[assignment]
     predictx: PredictXConfig = None  # type: ignore[assignment]
 

@@ -96,6 +96,8 @@ def run_single_backtest(
             cooldown_s=0.0,
             slippage_bps=15.0,
             settlement_risk_bps=0.0,
+            min_market_volume_usd=1_000.0,
+            thin_market_size_cap_usd=50_000.0,
             polymarket=PolymarketConfig(fee_bps_taker=80.0),
             predictx=PredictXConfig(fee_bps_normal=30.0),
         )

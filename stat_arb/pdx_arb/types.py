@@ -118,3 +118,15 @@ class ArbTrade:
     pnl_gross: float = 0.0
     pnl_net: float = 0.0
     settled: bool = False
+
+
+@dataclass
+class HedgeAction:
+    """Record of a hedge attempt after leg failure."""
+    original_trade_id: str
+    failed_venue: Venue
+    filled_venue: Venue
+    hedge_type: str  # "close_filled" or "retry_failed"
+    success: bool
+    pnl: float
+    timestamp: float = field(default_factory=time.time)

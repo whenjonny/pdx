@@ -53,7 +53,7 @@ def run_bot(
             logger.error("Cannot init PDX client — check PDX_PRIVATE_KEY, PDX_MARKET_ADDRESS")
             return
 
-    executor = ArbExecutor(config, pdx_client=pdx_client, dry_run=dry_run)
+    executor = ArbExecutor(config, pdx_client=pdx_client, risk_manager=risk_mgr, dry_run=dry_run)
 
     mode = "PAPER" if dry_run else "LIVE"
     print(f"\n{'=' * 60}")
