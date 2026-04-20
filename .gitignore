@@ -15,12 +15,12 @@ build/
 .env.*.local
 
 # Foundry
-contracts/out/
-contracts/cache/
-contracts/broadcast/
+predictX/contracts/out/
+predictX/contracts/cache/
+predictX/contracts/broadcast/
 
 # Frontend build
-frontend/dist/
+predictX/frontend/dist/
 
 # IDE
 .idea/
@@ -31,7 +31,7 @@ frontend/dist/
 .DS_Store
 
 # Database
-backend/data/
+predictX/backend/data/
 
 # Python
 *.egg
@@ -44,11 +44,11 @@ backend/data/
 npm-debug.log*
 
 # MiroFish (cloned external repo)
-mirofish/
+predictX/mirofish/
 
 # Claude / Trellis
 .claude/
-.trellis/
+predictX/.trellis/
 
 # Archive (old iterations)
-archive/
+predictX/archive/
