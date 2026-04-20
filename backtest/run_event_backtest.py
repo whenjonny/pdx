@@ -42,6 +42,7 @@ from pdx_backtest.metrics import compute_metrics
 from pdx_backtest.oms import OrderManagementSystem
 from pdx_backtest.portfolio import Portfolio
 from pdx_backtest.risk_manager import RiskLimits, RiskManager
+from pdx_backtest.strategies.enhanced_stat_arb import EnhancedStatArb
 from pdx_backtest.strategies.event_strategies import (
     EventNegRiskRebalancer,
     EventSingleBinaryRebalancer,
@@ -194,15 +195,17 @@ def run_event_backtest(
     strategies.append(binary_strat)
     print(f"  [2] {binary_strat.name}: threshold=0.5%, capital=$1,000")
 
-    # 3. Statistical Arbitrage
-    stat_strat = EventStatArb(
+    # 3. Statistical Arbitrage (enhanced YES-only version)
+    stat_strat = EnhancedStatArb(
         engine, oms, risk_mgr,
         ema_span=20,
         min_edge=0.03,
         bankroll=10_000.0,
+        max_fraction=0.25,
+        cooldown_ticks=10,
     )
     strategies.append(stat_strat)
-    print(f"  [3] {stat_strat.name}: EMA(20), min_edge=3%, bankroll=$10,000")
+    print(f"  [3] {stat_strat.name}: EMA(20), min_edge=3%, YES-only")
 
     # 4. Cross-Venue Arbitrage
     cv_strat = EventCrossVenueArb(
