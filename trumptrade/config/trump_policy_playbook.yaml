@@ -1,0 +1,144 @@
+version: 1
+last_updated: 2026-04-22
+notes: |
+  Trump trading playbook. Maps policy categories to ticker baskets (longs/shorts).
+  Used as:
+    1. Prompt context for the policy_classifier (tells the LLM what categories exist).
+    2. Deterministic lookup: category + sentiment -> basket (no LLM call needed).
+
+  Tickers are examples, not recommendations. Weights are 0-1 (conviction).
+  Sources for mapping rationale: historical 2017-2020 Trump 1 market reactions,
+  published sell-side "Trump trade" baskets (GS/MS/JPM 2024-2026 notes).
+
+categories:
+
+  tariff_china:
+    description: "Tariffs, sanctions, or trade restrictions targeting China (including sector-specific: EV, semis, solar, pharma)"
+    keywords: ["china", "tariff", "section 301", "cfius", "entity list", "de minimis"]
+    hawkish_long:  # Trump announces new/higher tariff
+      - {ticker: NUE,  weight: 0.9, thesis: "US steel beneficiary"}
+      - {ticker: STLD, weight: 0.85, thesis: "US steel"}
+      - {ticker: CLF,  weight: 0.7,  thesis: "US steel, higher beta"}
+      - {ticker: X,    weight: 0.7,  thesis: "US steel"}
+      - {ticker: CAT,  weight: 0.6,  thesis: "US domestic capex"}
+      - {ticker: DE,   weight: 0.5,  thesis: "US ag machinery"}
+    hawkish_short:
+      - {ticker: KWEB, weight: 0.9,  thesis: "China internet ETF"}
+      - {ticker: FXI,  weight: 0.85, thesis: "China large cap ETF"}
+      - {ticker: MCHI, weight: 0.7,  thesis: "China broad ETF"}
+      - {ticker: AAPL, weight: 0.6,  thesis: "Heavy China supply chain"}
+      - {ticker: TSLA, weight: 0.5,  thesis: "Shanghai factory exposure"}
+    dovish_long:   # De-escalation / tariff rollback
+      - {ticker: KWEB, weight: 0.8, thesis: "Unwind China discount"}
+      - {ticker: AAPL, weight: 0.5, thesis: "Supply chain relief"}
+
+  energy_oil_gas:
+    description: "Federal oil/gas leasing, pipeline approvals, LNG export permits, EPA rollback"
+    keywords: ["drill", "pipeline", "keystone", "lng", "anwr", "offshore lease", "epa rollback"]
+    hawkish_long:  # Pro oil/gas announcement
+      - {ticker: XOM, weight: 0.85, thesis: "Integrated oil major"}
+      - {ticker: CVX, weight: 0.85, thesis: "Integrated oil major"}
+      - {ticker: OXY, weight: 0.9,  thesis: "Permian pure-play, higher beta"}
+      - {ticker: COP, weight: 0.8,  thesis: "E&P"}
+      - {ticker: SLB, weight: 0.75, thesis: "Oilfield services"}
+      - {ticker: HAL, weight: 0.7,  thesis: "OFS"}
+      - {ticker: XLE, weight: 0.8,  thesis: "Sector ETF"}
+    hawkish_short:
+      - {ticker: ENPH, weight: 0.7, thesis: "Residential solar, inversely correlated"}
+      - {ticker: SEDG, weight: 0.75, thesis: "Solar inverters"}
+      - {ticker: ICLN, weight: 0.6, thesis: "Clean energy ETF"}
+      - {ticker: NEE,  weight: 0.4, thesis: "Renewables utility"}
+
+  crypto_friendly:
+    description: "Pro-crypto executive order, strategic Bitcoin reserve, SEC rule rollback"
+    keywords: ["bitcoin", "btc", "crypto", "sec gary", "spot etf", "strategic reserve"]
+    hawkish_long:
+      - {ticker: COIN, weight: 0.9,  thesis: "Primary US exchange"}
+      - {ticker: MSTR, weight: 0.9,  thesis: "Leveraged BTC proxy"}
+      - {ticker: HOOD, weight: 0.7,  thesis: "Retail crypto flow"}
+      - {ticker: IBIT, weight: 0.85, thesis: "Spot BTC ETF"}
+      - {ticker: MARA, weight: 0.75, thesis: "BTC miner"}
+      - {ticker: RIOT, weight: 0.7,  thesis: "BTC miner"}
+      - {ticker: GBTC, weight: 0.6,  thesis: "Legacy BTC vehicle"}
+    hawkish_short: []
+
+  defense_spending:
+    description: "Defense budget increase, military aid approval, new weapons programs"
+    keywords: ["pentagon", "defense budget", "military aid", "ukraine aid", "taiwan", "nato"]
+    hawkish_long:
+      - {ticker: LMT, weight: 0.85, thesis: "Missiles, F-35"}
+      - {ticker: RTX, weight: 0.8,  thesis: "Missiles, engines"}
+      - {ticker: NOC, weight: 0.8,  thesis: "Strategic systems"}
+      - {ticker: GD,  weight: 0.75, thesis: "Land combat systems"}
+      - {ticker: LHX, weight: 0.7,  thesis: "C4ISR"}
+      - {ticker: ITA, weight: 0.8,  thesis: "Defense ETF"}
+
+  bank_deregulation:
+    description: "Banking rule rollback, capital requirement reduction, M&A approval easing"
+    keywords: ["basel", "capital requirement", "dodd-frank", "ffi", "occ", "bank merger"]
+    hawkish_long:
+      - {ticker: JPM, weight: 0.8,  thesis: "Large cap bank"}
+      - {ticker: GS,  weight: 0.85, thesis: "IB reactivation"}
+      - {ticker: MS,  weight: 0.8,  thesis: "IB + wealth"}
+      - {ticker: BAC, weight: 0.7,  thesis: "Universal bank"}
+      - {ticker: KRE, weight: 0.9,  thesis: "Regional bank ETF, highest beta"}
+
+  pharma_price_pressure:
+    description: "Drug price negotiation, Medicare rule changes, import-parity threats"
+    keywords: ["most favored nation", "mfn", "medicare negotiation", "drug price", "pbm", "insulin"]
+    hawkish_long:  # Pro-price-cut announcement = bearish big pharma
+      - {ticker: TEVA, weight: 0.7, thesis: "Generics, benefits from lower branded"}
+    hawkish_short:
+      - {ticker: PFE, weight: 0.75, thesis: "Branded exposure"}
+      - {ticker: LLY, weight: 0.7,  thesis: "GLP-1 and Medicare exposure"}
+      - {ticker: MRK, weight: 0.7,  thesis: "Keytruda risk"}
+      - {ticker: UNH, weight: 0.65, thesis: "Managed care"}
+      - {ticker: CVS, weight: 0.6,  thesis: "PBM + pharmacy"}
+
+  immigration_border:
+    description: "Border enforcement, detention expansion, deportation funding"
+    keywords: ["border", "ice", "deportation", "title 42", "wall", "cbp"]
+    hawkish_long:
+      - {ticker: CXW, weight: 0.85, thesis: "Private prison, detention"}
+      - {ticker: GEO, weight: 0.85, thesis: "Private prison, detention"}
+      - {ticker: AXON, weight: 0.5, thesis: "Law enforcement equipment"}
+
+  big_tech_antitrust:
+    description: "FTC/DOJ action against Big Tech, Section 230 reform threats"
+    keywords: ["ftc", "doj antitrust", "section 230", "big tech breakup", "app store"]
+    hawkish_short:  # Anti-Big-Tech = short mega-cap tech
+      - {ticker: META,  weight: 0.7, thesis: "Ad monopoly / Section 230"}
+      - {ticker: GOOGL, weight: 0.75, thesis: "Search monopoly case"}
+      - {ticker: AMZN,  weight: 0.7, thesis: "Marketplace antitrust"}
+      - {ticker: AAPL,  weight: 0.6, thesis: "App store"}
+
+  clean_energy_rollback:
+    description: "IRA repeal, EV mandate rollback, wind/solar subsidy cuts"
+    keywords: ["ira", "inflation reduction", "ev mandate", "tax credit repeal", "wind solar"]
+    hawkish_long:
+      - {ticker: XOM, weight: 0.6, thesis: "Lower renewable competition"}
+      - {ticker: CVX, weight: 0.6, thesis: "Lower renewable competition"}
+    hawkish_short:
+      - {ticker: TSLA, weight: 0.8, thesis: "EV tax credit loss"}
+      - {ticker: ENPH, weight: 0.85, thesis: "Residential solar credit"}
+      - {ticker: FSLR, weight: 0.8, thesis: "Utility-scale solar"}
+      - {ticker: RUN,  weight: 0.8, thesis: "Solar installer"}
+      - {ticker: ICLN, weight: 0.75, thesis: "Clean energy ETF"}
+
+follow_through_priors:
+  # Historical probability that a Trump public statement translates to policy action
+  # within N days. Used by the bull/bear debate and as a confidence haircut.
+  tariff_threat_to_imposition_90d: 0.45
+  executive_order_promise_to_signature_30d: 0.70
+  tweet_only_no_official_channel_30d: 0.20
+  signed_eo_to_full_enforcement_90d: 0.75
+  walked_back_within_48h: 0.30  # ~30% of bold threats are softened within 2 days
+
+risk_gates:
+  min_confidence_to_alert: 0.55
+  min_confidence_to_paper_trade: 0.70
+  min_confidence_to_live_trade: 0.85
+  max_basket_notional_pct: 0.10       # max 10% of account on one event
+  max_single_ticker_notional_pct: 0.03
+  mandatory_stop_loss_pct: 0.08       # 8% stop on any Trump-driven position
+  walk_back_hard_stop: true           # flatten if Trump reverses within 48h

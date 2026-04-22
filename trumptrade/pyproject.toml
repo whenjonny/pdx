@@ -1,0 +1,23 @@
+[project]
+name = "trumptrade"
+version = "0.1.0"
+description = "Trump-policy signal monitor + basket expander (Week 1 read-only MVP)"
+requires-python = ">=3.10"
+dependencies = [
+    "anthropic>=0.70",
+    "pyyaml>=6.0",
+    "pydantic>=2.5",
+    "click>=8.1",
+    "feedparser>=6.0",
+]
+
+[project.scripts]
+trumptrade = "trumptrade.cli:cli"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["trumptrade*"]
