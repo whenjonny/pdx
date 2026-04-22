@@ -14,7 +14,7 @@ categories:
 
   tariff_china:
     description: "Tariffs, sanctions, or trade restrictions targeting China (including sector-specific: EV, semis, solar, pharma)"
-    keywords: ["china", "tariff", "section 301", "cfius", "entity list", "de minimis"]
+    keywords: ["china", "chinese", "tariff", "section 301", "cfius", "entity list", "de minimis", "ccp", "beijing", "xi"]
     hawkish_long:  # Trump announces new/higher tariff
       - {ticker: NUE,  weight: 0.9, thesis: "US steel beneficiary"}
       - {ticker: STLD, weight: 0.85, thesis: "US steel"}
@@ -34,7 +34,7 @@ categories:
 
   energy_oil_gas:
     description: "Federal oil/gas leasing, pipeline approvals, LNG export permits, EPA rollback"
-    keywords: ["drill", "pipeline", "keystone", "lng", "anwr", "offshore lease", "epa rollback"]
+    keywords: ["drill", "drilling", "pipeline", "keystone", "lng", "anwr", "offshore lease", "offshore leases", "epa rollback", "energy dominance", "oil", "gas"]
     hawkish_long:  # Pro oil/gas announcement
       - {ticker: XOM, weight: 0.85, thesis: "Integrated oil major"}
       - {ticker: CVX, weight: 0.85, thesis: "Integrated oil major"}
@@ -51,7 +51,7 @@ categories:
 
   crypto_friendly:
     description: "Pro-crypto executive order, strategic Bitcoin reserve, SEC rule rollback"
-    keywords: ["bitcoin", "btc", "crypto", "sec gary", "spot etf", "strategic reserve"]
+    keywords: ["bitcoin", "btc", "crypto", "sec gary", "spot etf", "strategic reserve", "coinbase", "miner", "blockchain"]
     hawkish_long:
       - {ticker: COIN, weight: 0.9,  thesis: "Primary US exchange"}
       - {ticker: MSTR, weight: 0.9,  thesis: "Leveraged BTC proxy"}
@@ -64,7 +64,7 @@ categories:
 
   defense_spending:
     description: "Defense budget increase, military aid approval, new weapons programs"
-    keywords: ["pentagon", "defense budget", "military aid", "ukraine aid", "taiwan", "nato"]
+    keywords: ["pentagon", "defense budget", "military aid", "ukraine aid", "taiwan", "nato", "military", "defense"]
     hawkish_long:
       - {ticker: LMT, weight: 0.85, thesis: "Missiles, F-35"}
       - {ticker: RTX, weight: 0.8,  thesis: "Missiles, engines"}
@@ -85,7 +85,7 @@ categories:
 
   pharma_price_pressure:
     description: "Drug price negotiation, Medicare rule changes, import-parity threats"
-    keywords: ["most favored nation", "mfn", "medicare negotiation", "drug price", "pbm", "insulin"]
+    keywords: ["most favored nation", "mfn", "medicare negotiation", "medicare drug", "drug price", "pbm", "insulin", "big pharma", "prices will drop"]
     hawkish_long:  # Pro-price-cut announcement = bearish big pharma
       - {ticker: TEVA, weight: 0.7, thesis: "Generics, benefits from lower branded"}
     hawkish_short:
@@ -97,7 +97,7 @@ categories:
 
   immigration_border:
     description: "Border enforcement, detention expansion, deportation funding"
-    keywords: ["border", "ice", "deportation", "title 42", "wall", "cbp"]
+    keywords: ["border", "ice ", "deportation", "title 42", "wall", "cbp", "detention", "migrant"]
     hawkish_long:
       - {ticker: CXW, weight: 0.85, thesis: "Private prison, detention"}
       - {ticker: GEO, weight: 0.85, thesis: "Private prison, detention"}
@@ -105,7 +105,7 @@ categories:
 
   big_tech_antitrust:
     description: "FTC/DOJ action against Big Tech, Section 230 reform threats"
-    keywords: ["ftc", "doj antitrust", "section 230", "big tech breakup", "app store"]
+    keywords: ["ftc", "doj", "antitrust", "section 230", "big tech", "breakup", "app store", "monopol", "google", "meta", "amazon"]
     hawkish_short:  # Anti-Big-Tech = short mega-cap tech
       - {ticker: META,  weight: 0.7, thesis: "Ad monopoly / Section 230"}
       - {ticker: GOOGL, weight: 0.75, thesis: "Search monopoly case"}
@@ -114,7 +114,7 @@ categories:
 
   clean_energy_rollback:
     description: "IRA repeal, EV mandate rollback, wind/solar subsidy cuts"
-    keywords: ["ira", "inflation reduction", "ev mandate", "tax credit repeal", "wind solar"]
+    keywords: ["ira", "inflation reduction", "ev mandate", "tax credit", "wind", "solar", "boondoggle", "ending the ev"]
     hawkish_long:
       - {ticker: XOM, weight: 0.6, thesis: "Lower renewable competition"}
       - {ticker: CVX, weight: 0.6, thesis: "Lower renewable competition"}

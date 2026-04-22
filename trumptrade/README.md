@@ -88,11 +88,31 @@ Model defaults:
 Each has `hawkish_long` / `hawkish_short` / `dovish_long` / `dovish_short`
 ticker lists. Editing the YAML is the primary way to tune this tool.
 
-## What's NOT in Week 1
-- Paper or live trading (no broker integration)
-- Truth Social scraping (stubbed)
-- TradingAgents deep per-ticker analysis
-- Walk-back detection (reverse positions if Trump flip-flops)
-- Backtest harness
+## What IS in Week 1 + Week 2
 
-See `.trellis/tasks/04-trumptrade/SPEC.md` for the roadmap.
+Week 1:
+- Mock / RSS / Truth-Social-stub signal sources
+- Claude Opus 4.7 classifier (with prompt caching) + offline fake classifier
+- Basket expander from YAML playbook (9 policy categories)
+- Alerter with confidence gates and jsonl persistence
+
+Week 2:
+- Walk-back detector (48h opposite-sentiment reversal -> close prior basket)
+- Risk-based position sizer (1% risk, 8% stop, 3% per-ticker cap, 10% basket cap)
+- `SimulatedPaperTrader` + `AlpacaPaperTrader` (lazy-import alpaca-py)
+- Backtest harness with `StubPriceSource` / `YFinancePriceSource`
+- CLI: `trumptrade backtest` and `trumptrade paper-trade`
+
+## What's NOT yet
+- Truth Social real-time scraping (use RSS or JSON export)
+- Sharpe / max DD stats (only P&L + win rate)
+- TradingAgents per-ticker deep dive
+- Live (non-paper) Alpaca trading
+
+## Runbook
+
+See `RUNBOOK.md` for step-by-step commands for every flow.
+
+## Spec
+
+See `.trellis/tasks/04-trumptrade/SPEC.md` for the full roadmap.

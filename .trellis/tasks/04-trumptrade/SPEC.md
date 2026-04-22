@@ -1,8 +1,14 @@
-# Task 04 — Trump Trading Monitor (Week 1 MVP)
+# Task 04 — Trump Trading Monitor (Week 1 + Week 2)
 
-Status: in-progress
+Status: Week 1 DONE, Week 2 DONE. Live paper trading not yet validated.
 Created: 2026-04-22
+Updated: 2026-04-22
 Owner: —
+
+## Quick links
+- Runbook: `trumptrade/RUNBOOK.md`
+- Playbook: `trumptrade/config/trump_policy_playbook.yaml`
+- Tests: `python -m pytest -v` in `trumptrade/` (15 passing)
 
 ## Goal
 
@@ -128,13 +134,28 @@ From playbook `risk_gates`:
 3. `data/alerts.jsonl` contains 1 line per alert
 4. User can read the output and agree/disagree with the classification (manual QA of 20+ real Trump posts)
 
-## Week 2 (later)
-- Paper trade via Alpaca (integrate `.claude/skills/portfolio-manager`)
-- Position sizing via `.claude/skills/position-sizer`
-- Walk-back detection (if Trump reverses within 48h, emit close signal)
-- Backtest harness with historical posts
+## Week 2 — DONE
+- `execution/walkback.py` — 48h opposite-sentiment reversal detector. Inverts
+  prior basket legs to produce close orders. Unit tested.
+- `execution/position_sizer.py` — risk-based sizing (risk% × account /
+  (price × stop%)), with caps: `max_single_ticker_notional_pct` and
+  `max_basket_notional_pct`. Short legs skip cash cap (margin assumed).
+- `execution/paper_trader.py` — `SimulatedPaperTrader` (pure, for backtest +
+  tests) and `AlpacaPaperTrader` (lazy-import alpaca-py).
+- `backtest/harness.py` + `backtest/prices.py` — replay alerts.jsonl, open
+  positions at signal post date, close after `hold_days` or on walk-back.
+  `StubPriceSource` (deterministic, offline) + `YFinancePriceSource`
+  (lazy-import).
+- CLI commands: `trumptrade backtest`, `trumptrade paper-trade`.
+- Fake keyword classifier (`classifier/fake_classifier.py`) — runs without
+  ANTHROPIC_API_KEY. Used for offline demo and CI.
+- 20 sample posts covering all 9 categories + walk-back pair + 4 noise posts.
 
 ## Week 3+ (later)
 - TradingAgents deep analysis per ticker in basket (optional, expensive)
 - Confidence calibration from P&L feedback (analogous to TradingAgents `reflect_and_remember`)
 - Multi-source cross-validation (Truth + X + WH 3/3)
+- Sharpe / max DD / drawdown-aware stop sizing
+- 1-hour prompt cache TTL for continuous-watch workloads
+- Truth Social real ingestion (requires truthbrush or alternative)
+- Live Alpaca trading validation (currently paper-only gate)

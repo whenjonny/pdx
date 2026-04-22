@@ -1,6 +1,6 @@
 [
   {
-    "id": "sample-1",
+    "id": "sample-01",
     "author": "realDonaldTrump",
     "timestamp": "2026-04-21T14:03:00+00:00",
     "text": "Effective May 1st, I am imposing a new 35% TARIFF on all Chinese electric vehicles and solar panels. American workers first! Bringing manufacturing BACK HOME where it belongs.",
@@ -8,7 +8,7 @@
     "source": "mock"
   },
   {
-    "id": "sample-2",
+    "id": "sample-02",
     "author": "realDonaldTrump",
     "timestamp": "2026-04-21T18:22:00+00:00",
     "text": "Just signed Executive Order establishing a Strategic Bitcoin Reserve. The United States will be the CRYPTO CAPITAL of the world. BTC going to the MOON!",
@@ -16,7 +16,7 @@
     "source": "mock"
   },
   {
-    "id": "sample-3",
+    "id": "sample-03",
     "author": "realDonaldTrump",
     "timestamp": "2026-04-22T09:15:00+00:00",
     "text": "Opening up ANWR and all offshore federal leases to drilling. Energy dominance is back. DRILL BABY DRILL.",
@@ -24,7 +24,7 @@
     "source": "mock"
   },
   {
-    "id": "sample-4",
+    "id": "sample-04",
     "author": "realDonaldTrump",
     "timestamp": "2026-04-22T11:45:00+00:00",
     "text": "Big Pharma has been ripping off Americans for too long. MOST FAVORED NATION pricing is coming. Prices will drop 60-80%. Watch.",
@@ -32,11 +32,131 @@
     "source": "mock"
   },
   {
-    "id": "sample-5",
+    "id": "sample-05",
     "author": "realDonaldTrump",
     "timestamp": "2026-04-22T15:30:00+00:00",
     "text": "Great meeting with the team today at Mar-a-Lago. The weather is beautiful. MAGA!",
     "url": "https://truthsocial.com/sample/5",
+    "source": "mock"
+  },
+  {
+    "id": "sample-06",
+    "author": "realDonaldTrump",
+    "timestamp": "2026-04-22T16:00:00+00:00",
+    "text": "Just approved the largest Pentagon defense budget in history. $1.2 TRILLION to rebuild our military. Sending additional military aid to allies. AMERICA STRONG!",
+    "url": "https://truthsocial.com/sample/6",
+    "source": "mock"
+  },
+  {
+    "id": "sample-07",
+    "author": "realDonaldTrump",
+    "timestamp": "2026-04-22T17:10:00+00:00",
+    "text": "Signed executive order today rolling back Basel capital requirements for small and mid-sized banks. Unleashing American finance!",
+    "url": "https://truthsocial.com/sample/7",
+    "source": "mock"
+  },
+  {
+    "id": "sample-08",
+    "author": "realDonaldTrump",
+    "timestamp": "2026-04-22T19:30:00+00:00",
+    "text": "The FTC will investigate Google, Meta, and Amazon for monopolistic practices. Big Tech has been silencing Americans for too long. Section 230 reform coming.",
+    "url": "https://truthsocial.com/sample/8",
+    "source": "mock"
+  },
+  {
+    "id": "sample-09",
+    "author": "realDonaldTrump",
+    "timestamp": "2026-04-22T20:15:00+00:00",
+    "text": "REPEAL the Inflation Reduction Act. No more taxpayer money for failed EV and wind/solar boondoggles. Ending the EV mandate today.",
+    "url": "https://truthsocial.com/sample/9",
+    "source": "mock"
+  },
+  {
+    "id": "sample-10",
+    "author": "realDonaldTrump",
+    "timestamp": "2026-04-22T21:00:00+00:00",
+    "text": "Expanding ICE operations and funding detention capacity. Deportations starting nationwide. Securing the border once and for all.",
+    "url": "https://truthsocial.com/sample/10",
+    "source": "mock"
+  },
+  {
+    "id": "sample-11",
+    "author": "realDonaldTrump",
+    "timestamp": "2026-04-23T08:00:00+00:00",
+    "text": "Had a great conversation with President Xi. We may PAUSE the new China tariffs to restart negotiations. A fair deal for BOTH nations!",
+    "url": "https://truthsocial.com/sample/11",
+    "source": "mock"
+  },
+  {
+    "id": "sample-12",
+    "author": "realDonaldTrump",
+    "timestamp": "2026-04-23T10:30:00+00:00",
+    "text": "Thinking about running another rally in Ohio. Huge crowds expected. The people LOVE it!",
+    "url": "https://truthsocial.com/sample/12",
+    "source": "mock"
+  },
+  {
+    "id": "sample-13",
+    "author": "realDonaldTrump",
+    "timestamp": "2026-04-23T12:45:00+00:00",
+    "text": "Approving the Keystone XL pipeline today. Restart American energy exports. LNG terminals to be expedited.",
+    "url": "https://truthsocial.com/sample/13",
+    "source": "mock"
+  },
+  {
+    "id": "sample-14",
+    "author": "realDonaldTrump",
+    "timestamp": "2026-04-23T14:00:00+00:00",
+    "text": "Just spoke with the CEO of Coinbase. Crypto is the future of finance. My administration will CLEAR the regulatory path for spot ETFs and Bitcoin miners.",
+    "url": "https://truthsocial.com/sample/14",
+    "source": "mock"
+  },
+  {
+    "id": "sample-15",
+    "author": "realDonaldTrump",
+    "timestamp": "2026-04-23T16:20:00+00:00",
+    "text": "Tremendous golf round at my club today. Shot a 71. Feeling great!",
+    "url": "https://truthsocial.com/sample/15",
+    "source": "mock"
+  },
+  {
+    "id": "sample-16",
+    "author": "realDonaldTrump",
+    "timestamp": "2026-04-23T17:00:00+00:00",
+    "text": "Increasing tariffs on Chinese semiconductors to 50%. The CHIPS Act was a disaster — putting America first means NO more silicon from the CCP.",
+    "url": "https://truthsocial.com/sample/16",
+    "source": "mock"
+  },
+  {
+    "id": "sample-17",
+    "author": "realDonaldTrump",
+    "timestamp": "2026-04-23T18:45:00+00:00",
+    "text": "My DOJ will pursue antitrust action against Apple for App Store monopoly. Breakup on the table. BIG TECH must be held accountable.",
+    "url": "https://truthsocial.com/sample/17",
+    "source": "mock"
+  },
+  {
+    "id": "sample-18",
+    "author": "realDonaldTrump",
+    "timestamp": "2026-04-23T19:30:00+00:00",
+    "text": "Medicare drug negotiation rules being STRENGTHENED. Insulin down 80%. Most Favored Nation pricing coming for the top 50 drugs.",
+    "url": "https://truthsocial.com/sample/18",
+    "source": "mock"
+  },
+  {
+    "id": "sample-19",
+    "author": "realDonaldTrump",
+    "timestamp": "2026-04-24T09:00:00+00:00",
+    "text": "After productive talks, suspending the Keystone permit revocation review. Energy policy needs MORE CAREFUL consideration. Pausing pipeline decisions.",
+    "url": "https://truthsocial.com/sample/19",
+    "source": "mock"
+  },
+  {
+    "id": "sample-20",
+    "author": "realDonaldTrump",
+    "timestamp": "2026-04-24T11:00:00+00:00",
+    "text": "The stock market is looking STRONG today. Record profits for American workers. MAGA economy continues!",
+    "url": "https://truthsocial.com/sample/20",
     "source": "mock"
   }
 ]
