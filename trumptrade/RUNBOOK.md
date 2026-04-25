@@ -128,6 +128,36 @@ python -m trumptrade.cli backtest --no-walkback
 
 ---
 
+## 7-pre. Manage prediction-market venues
+
+```bash
+# list registered venues (defined in config/markets.yaml)
+python -m trumptrade.cli markets-list
+
+# filter by topic (which categories the venue typically lists)
+python -m trumptrade.cli markets-list --topic tariff_china
+
+# filter by class
+python -m trumptrade.cli markets-list --venue-class regulated_us
+```
+
+Add a venue: edit `config/markets.yaml`, declare metadata block, point
+`factory:` to a `PredictionMarketClient` subclass. To add a long-tail venue
+without writing a custom client, use `PMXTClient` (requires
+`pip install pmxt` + Node.js):
+
+```yaml
+- name: limitless
+  factory: trumptrade.markets:PMXTClient
+  args:
+    exchange: limitless
+  metadata:
+    venue_class: onchain_evm
+    base_currency: USDC
+    chain: base
+    ...
+```
+
 ## 7. Cross-market arbitrage scanner (Polymarket vs Kalshi)
 
 ```bash
@@ -190,6 +220,81 @@ the signal covers. To add a new source:
 2. Add an entry to `config/sources.yaml` with `factory: my.module:MyClass`,
    `args:`, and the `metadata:` block.
 3. `python -m trumptrade.cli sources-list` will pick it up.
+
+## 8.5. Position monitoring + automatic close
+
+```bash
+# one-shot sweep over all open positions
+python -m trumptrade.cli monitor --once --mode alert
+
+# continuous loop, default 30s polling
+python -m trumptrade.cli monitor --mode alert --interval 30
+
+# paper mode: positions get marked closed when a rule fires; no real orders
+python -m trumptrade.cli monitor --mode paper
+
+# inspect current positions
+python -m trumptrade.cli positions
+python -m trumptrade.cli positions --show-closed
+
+# manually close a position
+python -m trumptrade.cli close-position <id> --exit-price 0.62
+```
+
+Six exit triggers run on every tick (priority order):
+
+1. `walkback`         — Trump reversed in same category (≤48h)
+2. `arb_convergence`  — locked spread closed → take profit early
+3. `stop_loss`        — mark price hit `stop_loss_price`
+4. `take_profit`      — mark price hit `take_profit_price`
+5. `time_decay`       — market closes within N hours (default 24)
+6. `liquidity_drop`   — 24h volume below threshold
+
+Positions persist to `data/positions.jsonl`; close orders to
+`data/close_orders.jsonl`. Both files are append-only logs.
+
+Modes:
+- `alert`  — log decision, do NOT submit. **Recommended for first 1-2 weeks.**
+- `paper`  — log + mark position closed in store; no broker call
+- `live`   — actually submit. Requires per-venue trader to implement
+             `submit_close(order)`. Not wired by default.
+
+## 8.6. Risk management
+
+```bash
+python -m trumptrade.cli risk-status
+```
+
+Edit caps in `config/risk_limits.yaml`:
+
+| Limit | Default | Meaning |
+|---|---|---|
+| `account_value_usd` | 10000 | Sets denominator for all % caps |
+| `max_total_exposure_pct` | 30% | Cap across all open positions |
+| `max_per_venue_pct` | 15% | Per venue (Polymarket / Kalshi / ...) |
+| `max_per_category_pct` | 10% | Per playbook category |
+| `max_per_event_pct` | 5% | Per single event |
+| `max_per_position_pct` | 3% | Single position |
+| `daily_loss_circuit_breaker_pct` | 5% | Stop new opens after N% drawdown today |
+| `max_open_positions` | 50 | Hard count cap |
+| `min_market_volume_24h` | 1000 | Reject markets with thin liquidity |
+
+`RiskChecker.check()` is called pre-trade by the orchestrator (when wired).
+Returns a `RiskVerdict` with allowed=False + breach details if any cap fails.
+
+## 8.7. Dashboard (Streamlit)
+
+```bash
+pip install streamlit pandas
+python -m trumptrade.cli dashboard       # opens http://localhost:8501
+```
+
+Five tabs:
+- **positions** — open / closed, with unrealized + realized P&L
+- **alerts** — recent classification alerts + bar chart by category
+- **markets** — registered venues from `markets.yaml`
+- **sources** — registered signal sources from `sources.yaml`
+- **risk** — current exposure vs limits, daily P&L vs circuit breaker
 
 ## 9. Paper trade via Alpaca
 

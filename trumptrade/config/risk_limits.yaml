@@ -1,0 +1,28 @@
+# Portfolio-wide risk limits. Layered above per-trade playbook.risk_gates.
+# Edit and reload — no code change needed.
+
+# Account
+account_value_usd: 10000.0
+
+# Aggregate caps (percent of account)
+max_total_exposure_pct: 0.30
+max_per_venue_pct: 0.15
+max_per_category_pct: 0.10
+max_per_event_pct: 0.05
+max_per_position_pct: 0.03
+
+# Daily P&L throttle: stop new opens after N% drawdown today
+daily_loss_circuit_breaker_pct: 0.05
+
+# Open-position counts
+max_open_positions: 50
+max_open_per_venue: 25
+
+# Concentration
+max_directional_streak_per_category: 5
+
+# Liquidity gate (skip markets with thin volume)
+min_market_volume_24h: 1000.0
+
+# Arb
+arb_min_edge: 0.005

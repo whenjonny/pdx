@@ -135,6 +135,141 @@ def sources_list(config_path: str) -> None:
             click.echo(f"      desc      : {meta.description}")
 
 
+@cli.command("markets-list")
+@click.option("--config", "config_path", type=click.Path(exists=True),
+              default="config/markets.yaml")
+@click.option("--topic", default=None, help="Filter venues by topic.")
+@click.option("--venue-class", default=None,
+              type=click.Choice(["regulated_us", "onchain_evm", "onchain_solana",
+                                 "onchain_other", "play_money", "research"]))
+def markets_list(config_path: str, topic: str | None, venue_class: str | None) -> None:
+    """List all prediction-market venues, optionally filtered by topic / class."""
+    from trumptrade.markets import VenueRegistry
+    r = VenueRegistry.from_yaml(Path(config_path))
+    venues = r.query(topic=topic, venue_class=venue_class)
+    click.echo(f"{len(venues)} venue(s) (of {len(r)} total)")
+    for client, meta in venues:
+        click.echo(f"  - {meta.name}  [{meta.venue_class}]")
+        click.echo(f"      chain={meta.chain or '-'}  ccy={meta.base_currency}  "
+                   f"fees~{meta.fee_estimate_per_dollar:.4f}/$  reliability={meta.reliability:.2f}")
+        click.echo(f"      auth_read={meta.auth_required_for_read}  "
+                   f"auth_trade={meta.auth_required_for_trade}  "
+                   f"limit_orders={meta.supports_limit_orders}  ws={meta.supports_websocket}")
+        if meta.topics:
+            click.echo(f"      topics    : {', '.join(meta.topics)}")
+        if meta.description:
+            click.echo(f"      desc      : {meta.description}")
+
+
+@cli.command("positions")
+@click.option("--show-closed", is_flag=True, help="Include closed positions.")
+def positions_cmd(show_closed: bool) -> None:
+    """List current open (and optionally closed) positions."""
+    from trumptrade.monitor import PositionStore
+    store = PositionStore(data_dir() / "positions.jsonl")
+    opens = store.open_positions()
+    click.echo(f"{len(opens)} open position(s)")
+    for p in opens:
+        mark = p.current_mark
+        upnl = p.unrealized_pnl
+        click.echo(f"  {p.id}  {p.venue:11s} {p.side:8s} entry={p.entry_price:.3f} "
+                   f"size={p.size_contracts}  mark={mark if mark is not None else '-':<6} "
+                   f"upnl={upnl if upnl is not None else '-':<8}  {p.market_title[:40]}")
+    if show_closed:
+        closed = store.closed_positions()
+        click.echo(f"\n{len(closed)} closed position(s)")
+        for p in closed[-30:]:
+            click.echo(f"  {p.id}  {p.venue:11s} {p.side:8s} entry={p.entry_price:.3f} "
+                       f"exit={p.exit_price or 0:.3f}  pnl={p.realized_pnl or 0:+.2f}  "
+                       f"reason={p.exit_reason}  {p.market_title[:40]}")
+
+
+@cli.command("close-position")
+@click.argument("position_id")
+@click.option("--exit-price", type=float, required=True, help="Manual exit price (mark).")
+def close_position(position_id: str, exit_price: float) -> None:
+    """Manually close a position (logs to positions.jsonl, no broker call)."""
+    from trumptrade.monitor import PositionStore
+    store = PositionStore(data_dir() / "positions.jsonl")
+    p = store.close(position_id, exit_price=exit_price, reason="manual")
+    click.echo(f"closed {p.id}  exit={p.exit_price:.3f}  pnl={p.realized_pnl:+.2f}")
+
+
+@cli.command("monitor")
+@click.option("--mode", type=click.Choice(["alert", "paper", "live"]), default="alert")
+@click.option("--interval", type=int, default=30)
+@click.option("--once", is_flag=True, help="One sweep then exit.")
+@click.option("--markets-config", type=click.Path(exists=True),
+              default="config/markets.yaml")
+def monitor_cmd(mode: str, interval: int, once: bool, markets_config: str) -> None:
+    """Continuous position monitor: poll quotes, evaluate exit rules,
+    emit close orders. Default mode is `alert` (no real orders submitted)."""
+    from trumptrade.monitor import (
+        PositionStore, MonitorLoop, CloseExecutor, build_default_rules,
+    )
+    from trumptrade.markets import VenueRegistry
+
+    store = PositionStore(data_dir() / "positions.jsonl")
+    venues = VenueRegistry.from_yaml(Path(markets_config))
+    venue_clients = {meta.name: client for client, meta in venues.all()}
+
+    def quote_fn(venue: str, market_id: str):
+        client = venue_clients.get(venue)
+        if client is None:
+            return None
+        return client.get_quote(market_id)
+
+    executor = CloseExecutor(
+        mode=mode,
+        log_path=data_dir() / "close_orders.jsonl",
+        venue_clients=venue_clients,
+    )
+    loop = MonitorLoop(store=store, rules=build_default_rules(),
+                       executor=executor, quote_fn=quote_fn)
+
+    if once:
+        stats = loop.run_once()
+        click.echo(f"tick stats: {stats}")
+    else:
+        loop.run_forever(interval_sec=interval)
+
+
+@cli.command("risk-status")
+@click.option("--config", "config_path", type=click.Path(exists=True),
+              default="config/risk_limits.yaml")
+def risk_status(config_path: str) -> None:
+    """Show current portfolio exposure vs risk limits."""
+    from trumptrade.monitor import PositionStore
+    from trumptrade.risk import load_risk_limits, RiskChecker
+    limits = load_risk_limits(config_path)
+    store = PositionStore(data_dir() / "positions.jsonl")
+    opens = store.open_positions()
+    total = sum(p.notional_at_entry for p in opens)
+    click.echo(f"account_value = ${limits.account_value_usd:,.2f}")
+    click.echo(f"open positions = {len(opens)} / max {limits.max_open_positions}")
+    click.echo(f"total exposure = ${total:,.2f}  "
+               f"({total/limits.account_value_usd:.1%} of acct, "
+               f"cap {limits.max_per_venue_pct:.0%})")
+    by_venue: dict[str, float] = {}
+    for p in opens:
+        by_venue[p.venue] = by_venue.get(p.venue, 0.0) + p.notional_at_entry
+    if by_venue:
+        click.echo("by venue:")
+        for v, n in sorted(by_venue.items(), key=lambda kv: kv[1], reverse=True):
+            click.echo(f"  {v:11s} ${n:,.2f}  ({n/limits.account_value_usd:.1%})")
+
+
+@cli.command("dashboard")
+@click.option("--port", type=int, default=8501)
+def dashboard_cmd(port: int) -> None:
+    """Launch the Streamlit dashboard."""
+    import subprocess, sys
+    app_path = Path(__file__).resolve().parent / "dashboard" / "app.py"
+    cmd = [sys.executable, "-m", "streamlit", "run", str(app_path), "--server.port", str(port)]
+    click.echo(f"launching: {' '.join(cmd)}")
+    subprocess.run(cmd)
+
+
 @cli.command("paper-trade")
 @click.option("--alert-id", type=str, required=False, help="Trade most recent alert if omitted.")
 @click.option("--alerts", "alerts_path", type=click.Path(exists=True), default="data/alerts.jsonl")
