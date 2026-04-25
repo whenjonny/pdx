@@ -31,7 +31,7 @@ Nothing else is required for the offline demo flow below.
 cd /home/user/pdx/trumptrade
 python -m pytest -v
 ```
-Expected: `24 passed`.
+Expected: `53 passed`.
 
 ---
 
@@ -281,6 +281,68 @@ Edit caps in `config/risk_limits.yaml`:
 
 `RiskChecker.check()` is called pre-trade by the orchestrator (when wired).
 Returns a `RiskVerdict` with allowed=False + breach details if any cap fails.
+
+## 8.65. Agents + Orders (decision/execution layer)
+
+The full pipeline is now layered:
+
+```
+SIGNAL  ──► AGENT  ──► TradeDecision  ──► OrderRouter  ──► VenueExecutor  ──► Fill ──► Position
+(sources/)   (agents/)                    (orders/)      (orders/)              (monitor/)
+```
+
+### Agents
+
+Three concrete agents live in `trumptrade.agents`:
+
+| Agent | Input | Output |
+|---|---|---|
+| `PolicyAgent`  | Trump-policy `Signal`         | `open` decisions on every venue carrying that policy category |
+| `ArbAgent`     | Any signal (uses `signal.text`)| Two linked `open` decisions (long YES + long NO across venues) |
+| `ExitAgent`    | Tick (no signal)              | `close` decisions for any open position triggering a rule |
+
+Every agent emits `TradeDecision` objects with: action, venue, market, side,
+size, price_limit, confidence, suggested_stop / take_profit / max_hold_until,
+linked_decision_id (for arb pairs), target_position_id (for closes).
+
+### OrderRouter
+
+`OrderRouter.route(decisions)` does, per decision:
+
+1. Build an `Order` from the decision
+2. Pre-trade risk check (only for opens) via `RiskChecker`
+3. Submit to the right venue executor
+4. On fill, reconcile to `PositionStore` (insert for opens, mark-closed for closes)
+5. For linked legs: if either leg rejects, cancel the partner best-effort
+
+### Venue executors
+
+`SimulatedExecutor` is the reference impl — fills instantly at limit price (or
+quote-mid if a `quote_fn` is provided). For real venues, subclass
+`VenueExecutor` and implement `submit()` + `cancel()`. Three concrete
+executors are NOT yet wired (Kalshi REST, Polymarket EIP-712, Predict.fun
+REST) — those are next.
+
+### How this changes day-to-day usage
+
+Most users don't touch agents/orders directly — the existing CLI commands
+(`watch`, `monitor`, `arb-scan`) will be re-wired in a follow-up to use
+`OrderRouter` instead of writing positions/closes directly. Right now the
+agents+orders layer is exercised through unit tests; full pipeline wiring is
+the next step.
+
+### Markets-as-signals
+
+`signals/market_signal.py` ships two market-side signal sources you can
+register in `config/sources.yaml`:
+
+- `PriceJumpSource` — emits a Signal when a watched market's mid moves
+   ≥ N% between polls (good for fast-arb agents)
+- `ArbOpportunitySource` — wraps `ArbScanner`; each detected arb becomes
+   a Signal so `ArbAgent` can act on it
+
+This closes the loop: market behaviour itself is a signal, classified and
+routed the same way Trump posts are.
 
 ## 8.7. Dashboard (Streamlit)
 

@@ -8,8 +8,10 @@ Outcome = Literal["YES", "NO"]
 
 
 class MarketRef(BaseModel):
-    """A canonical reference to a single binary YES/NO market on a venue."""
-    venue: Literal["polymarket", "kalshi"]
+    """A canonical reference to a single binary YES/NO market on a venue.
+    `venue` is an open string so any new venue (predict.fun, limitless,
+    hyperliquid, ...) plugs in without a type change."""
+    venue: str
     market_id: str
     title: str
     description: str = ""
