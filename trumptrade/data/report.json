@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-25T06:02:34.702747+00:00",
+  "generated_at": "2026-04-25T06:07:39.726544+00:00",
   "window_start": "2026-04-21T14:03:00+00:00",
   "window_end": "2026-04-24T11:00:00+00:00",
   "signals": {
@@ -9,22 +9,22 @@
     }
   },
   "decisions": {
-    "total": 406,
+    "total": 408,
     "by_agent": {
       "policy": 60,
       "arb": 304,
-      "exit": 42
+      "exit": 44
     },
     "by_action": {
       "open": 364,
-      "close": 42
+      "close": 44
     }
   },
   "orders": {
-    "total": 272,
-    "fill_rate": 0.3382352941176471,
+    "total": 274,
+    "fill_rate": 0.34306569343065696,
     "by_status": {
-      "filled": 92,
+      "filled": 94,
       "rejected": 180
     },
     "rejected_top_reasons": [
@@ -39,27 +39,27 @@
     ]
   },
   "positions": {
-    "open": 8,
-    "closed": 42,
-    "winning": 34,
+    "open": 6,
+    "closed": 44,
+    "winning": 36,
     "losing": 8,
-    "win_rate": 0.8095238095238095,
-    "realized_pnl": 432.61,
-    "unrealized_pnl": -180.00379999999996,
-    "avg_win": 14.83735294117647,
+    "win_rate": 0.8181818181818182,
+    "realized_pnl": 477.68999999999994,
+    "unrealized_pnl": -216.23,
+    "avg_win": 15.26527777777778,
     "avg_loss": -8.9825,
     "largest_win": 31.13,
     "largest_loss": -10.92,
     "by_exit_reason": {
+      "take_profit": 5,
       "stop_loss": 9,
-      "arb_convergence": 30,
-      "take_profit": 3
+      "arb_convergence": 30
     },
     "by_venue": {
       "polymarket": {
         "positions": 25,
-        "realized": 306.8,
-        "open_notional": 186.82840000000002
+        "realized": 351.88,
+        "open_notional": 140.41
       },
       "kalshi": {
         "positions": 25,

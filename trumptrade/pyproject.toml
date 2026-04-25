@@ -8,8 +8,15 @@ dependencies = [
     "pyyaml>=6.0",
     "pydantic>=2.5",
     "click>=8.1",
-    "feedparser>=6.0",
+    "requests>=2.31",
 ]
+
+[project.optional-dependencies]
+rss = ["feedparser>=6.0"]
+prices = ["yfinance>=0.2"]
+broker = ["alpaca-py>=0.30"]
+dashboard = ["streamlit>=1.30", "pandas>=2.0"]
+pmxt = ["pmxt"]
 
 [project.scripts]
 trumptrade = "trumptrade.cli:cli"
