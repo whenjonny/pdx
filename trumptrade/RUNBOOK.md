@@ -31,7 +31,7 @@ Nothing else is required for the offline demo flow below.
 cd /home/user/pdx/trumptrade
 python -m pytest -v
 ```
-Expected: `15 passed`.
+Expected: `24 passed`.
 
 ---
 
@@ -128,7 +128,70 @@ python -m trumptrade.cli backtest --no-walkback
 
 ---
 
-## 7. Paper trade via Alpaca
+## 7. Cross-market arbitrage scanner (Polymarket vs Kalshi)
+
+```bash
+pip install requests   # only HTTP dep needed for arb-scan
+
+# rule-based matcher (free, fast)
+python -m trumptrade.cli arb-scan --query "Trump tariff" --limit 25 --min-edge 0.01
+
+# Claude-based semantic matcher (~$0.01 per pair, more accurate)
+export ANTHROPIC_API_KEY=sk-ant-...
+python -m trumptrade.cli arb-scan --query "Trump tariff" --use-llm --min-edge 0.005
+
+# include estimated round-trip fees
+python -m trumptrade.cli arb-scan --query "Fed rate cut June" --fee 0.02
+```
+
+What it does:
+1. Search both venues with the same free-text query
+2. Match Polymarket markets <-> Kalshi markets that look like the same event
+   (rule-based Jaccard token overlap by default; Claude Haiku semantic match
+   with `--use-llm`)
+3. Pull YES/NO bid/ask quotes
+4. For each match find the cheapest pair: long YES on one venue + long NO on
+   the other. If `yes_ask_cheap + no_ask_expensive < 1.0 - fees - min_edge`,
+   it's a lock; print sized trade plan.
+
+Output gives you the EXACT trade pair to execute manually
+(Polymarket needs wallet signing, not yet wired). For Kalshi-only directional
+trades, plug `KALSHI_EMAIL` + `KALSHI_PASSWORD` and call `KalshiClient.login()`.
+
+**Risks** — read before trading any of these:
+- Resolution-source mismatch: Kalshi and Polymarket may resolve the "same"
+  event using different rules. Always read both rule books before sizing.
+- Liquidity: small markets show wide spreads; the displayed ask may not fill
+  at size. Use `volume_24h` as a rough liquidity gate.
+- Settlement timing: contracts on the two venues may settle on different
+  dates; mark-to-market drawdown possible mid-trade.
+- Polymarket execution requires an EIP-712 wallet signature (USDC on Polygon).
+  Live Polymarket trading is intentionally NOT wired in this MVP.
+
+## 8. Manage signal sources via YAML
+
+The signal-source layer is pluggable. Edit `config/sources.yaml` to add or
+remove sources at runtime:
+
+```bash
+# list everything currently registered
+python -m trumptrade.cli sources-list
+
+# point at a different manifest
+python -m trumptrade.cli sources-list --config /path/to/my_sources.yaml
+```
+
+Each entry in the manifest MUST declare its metadata (domain, markets,
+industries, cadence, auth, cost, reliability) so downstream code knows what
+the signal covers. To add a new source:
+
+1. Implement a `SignalSource` subclass (see `signals/federal_register.py`
+   as a reference).
+2. Add an entry to `config/sources.yaml` with `factory: my.module:MyClass`,
+   `args:`, and the `metadata:` block.
+3. `python -m trumptrade.cli sources-list` will pick it up.
+
+## 9. Paper trade via Alpaca
 
 **Read the Alpaca paper-account setup first. Never run this against a live
 account until you've validated the flow.**
@@ -159,7 +222,7 @@ Change any of these in `config/trump_policy_playbook.yaml`.
 
 ---
 
-## 8. Customize the playbook
+## 10. Customize the playbook
 
 Edit `config/trump_policy_playbook.yaml` to:
 - Add a new policy category with its own ticker basket
@@ -176,11 +239,20 @@ export TRUMPTRADE_PLAYBOOK=/path/to/my_custom.yaml
 
 ---
 
-## 9. File & data reference
+## 11. File & data reference
 
 | Path | What |
 |---|---|
-| `trumptrade/trumptrade/cli.py` | CLI entry (`watch`, `analyze`, `paper-trade`, `backtest`) |
+| `trumptrade/trumptrade/cli.py` | CLI entry (`watch`, `analyze`, `paper-trade`, `backtest`, `arb-scan`, `sources-list`) |
+| `trumptrade/trumptrade/signals/registry.py` | `SourceRegistry`: register / unregister / query sources |
+| `trumptrade/trumptrade/signals/metadata.py` | `SourceMetadata`: domain / markets / industries / cadence / auth / cost / reliability |
+| `trumptrade/trumptrade/signals/federal_register.py` | Federal Register presidential-document poller |
+| `trumptrade/trumptrade/markets/polymarket.py` | Polymarket Gamma + CLOB read-only client |
+| `trumptrade/trumptrade/markets/kalshi.py` | Kalshi v2 REST read-only client (with optional JWT login) |
+| `trumptrade/trumptrade/arb/matcher.py` | Match same event across venues (rules + LLM) |
+| `trumptrade/trumptrade/arb/detector.py` | Compute cross-market lock from a matched pair |
+| `trumptrade/trumptrade/arb/scanner.py` | End-to-end search → match → quote → opportunity |
+| `trumptrade/config/sources.yaml` | Pluggable signal-source manifest |
 | `trumptrade/trumptrade/classifier/policy_classifier.py` | Claude Opus 4.7 classifier + prompt-caching |
 | `trumptrade/trumptrade/classifier/fake_classifier.py` | Offline keyword classifier (no API key) |
 | `trumptrade/trumptrade/signals/` | `MockFileSource`, `RSSFeedSource`, Truth Social stub |
@@ -195,7 +267,7 @@ export TRUMPTRADE_PLAYBOOK=/path/to/my_custom.yaml
 
 ---
 
-## 10. Common pitfalls
+## 12. Common pitfalls
 
 - **`watch` emits 0 alerts:** likely your confidence threshold in
   `playbook.risk_gates.min_confidence_to_alert` is too high, or the fake
@@ -215,12 +287,18 @@ export TRUMPTRADE_PLAYBOOK=/path/to/my_custom.yaml
 
 ---
 
-## 11. What's not in this tool (yet)
+## 13. What's not in this tool (yet)
 
 - Truth Social real-time scraping — use RSS or paste posts into a JSON file
 - Live-account trading (Alpaca live endpoint) — intentionally not wired
+- Polymarket execution (EIP-712 wallet signing) — `arb-scan` outputs trade
+  plans only; you sign and submit manually for now
+- Kalshi order placement — login wired, order endpoints not yet exposed in CLI
 - Prompt-cache 1-hour TTL (currently 5min default) — change in
   `policy_classifier.py` if running continuous watch loop
 - TradingAgents deep analysis per ticker — separate integration task
 - Sharpe / max DD calculation — backtest reports P&L / win rate only
 - Backtest parallelization — runs serially over alerts
+- Pipeline integration: trump signal classifier doesn't yet auto-trigger
+  `arb-scan` for the matching policy category. Run them as separate steps
+  for now.

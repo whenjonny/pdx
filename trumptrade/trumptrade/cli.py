@@ -95,6 +95,46 @@ def backtest(alerts_path: str, capital: float, hold_days: int, price_source: str
         )
 
 
+@cli.command("arb-scan")
+@click.option("--query", "-q", required=True, help="Free-text query, e.g. 'tariff china'.")
+@click.option("--limit", type=int, default=25, help="Markets per venue.")
+@click.option("--min-edge", type=float, default=0.01, help="Minimum gross profit per $1 pair.")
+@click.option("--fee", type=float, default=0.0, help="Combined round-trip fee per $1.")
+@click.option("--use-llm", is_flag=True, help="Use Claude Haiku for semantic match (more accurate, costs ~$0.01/pair).")
+def arb_scan(query: str, limit: int, min_edge: float, fee: float, use_llm: bool) -> None:
+    """Scan Polymarket vs Kalshi for cross-market arbitrage opportunities."""
+    from trumptrade.markets import PolymarketClient, KalshiClient
+    from trumptrade.arb import ArbScanner
+    scanner = ArbScanner(
+        polymarket=PolymarketClient(),
+        kalshi=KalshiClient(),
+        use_llm_matcher=use_llm,
+        fee_per_dollar=fee,
+        min_edge=min_edge,
+    )
+    report = scanner.scan(query, per_venue_limit=limit)
+    click.echo(report.summary())
+
+
+@cli.command("sources-list")
+@click.option("--config", "config_path", type=click.Path(exists=True),
+              default="config/sources.yaml")
+def sources_list(config_path: str) -> None:
+    """List all signal sources declared in the YAML manifest."""
+    from trumptrade.signals import SourceRegistry
+    r = SourceRegistry.from_yaml(Path(config_path))
+    click.echo(f"{len(r)} source(s) registered")
+    for src, meta in r.all():
+        click.echo(f"  - {meta.name}")
+        click.echo(f"      domain    : {meta.domain}")
+        click.echo(f"      markets   : {', '.join(meta.markets) or '(none)'}")
+        click.echo(f"      industries: {', '.join(meta.industries) or '(cross-sector)'}")
+        click.echo(f"      cadence   : {meta.update_cadence}  auth={meta.auth_required}  "
+                   f"cost=${meta.cost_per_request_usd:.4f}/req  reliability={meta.reliability:.2f}")
+        if meta.description:
+            click.echo(f"      desc      : {meta.description}")
+
+
 @cli.command("paper-trade")
 @click.option("--alert-id", type=str, required=False, help="Trade most recent alert if omitted.")
 @click.option("--alerts", "alerts_path", type=click.Path(exists=True), default="data/alerts.jsonl")

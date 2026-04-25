@@ -1,0 +1,94 @@
+# Signal source registry manifest. Add or remove entries to change what
+# trumptrade subscribes to. Each entry MUST declare the metadata block —
+# this is how downstream consumers (classifier / pipeline / dashboard)
+# decide which signals are relevant to which markets/industries.
+#
+# Required metadata fields:
+#   domain          : us_policy | macro | corporate | prediction_market |
+#                     sentiment | regulatory | geopolitical
+#   markets         : list of asset markets the signal can MOVE
+#                     (us_equities, us_options, prediction_markets, crypto, ...)
+#   industries      : list of sector exposures (or [] for cross-sector)
+#   update_cadence  : real_time | minutes | hourly | daily | irregular
+#   auth_required   : bool
+#   cost_per_request_usd : 0 = free
+#   reliability     : 0-1, ToS / uptime risk score (1 = official API)
+#   description     : human-readable
+#
+# `factory` is `module.path:ClassName`, `args` is passed to the constructor.
+
+sources:
+
+  - name: mock-sample-posts
+    factory: trumptrade.signals.mock:MockFileSource
+    args:
+      path: data/sample_posts/posts.json
+    metadata:
+      domain: us_policy
+      markets: [us_equities, prediction_markets]
+      industries: [tariff, energy, crypto, defense, banking, pharma, immigration, big_tech, clean_energy]
+      update_cadence: irregular
+      auth_required: false
+      cost_per_request_usd: 0
+      reliability: 1.0
+      description: "Local JSON of demo Trump posts (offline test)"
+
+  - name: whitehouse-rss
+    factory: trumptrade.signals.rss:RSSFeedSource
+    args:
+      url: https://www.whitehouse.gov/feed/
+      author: whitehouse.gov
+      source_label: wh_rss
+    metadata:
+      domain: us_policy
+      markets: [us_equities, us_options, prediction_markets]
+      industries: []   # cross-sector
+      update_cadence: minutes
+      auth_required: false
+      cost_per_request_usd: 0
+      reliability: 0.95
+      description: "Official White House press release RSS"
+
+  - name: federal-register-eo
+    factory: trumptrade.signals.federal_register:FederalRegisterSource
+    args:
+      per_page: 20
+      document_types: ["presidential_document"]
+    metadata:
+      domain: us_policy
+      markets: [us_equities, prediction_markets]
+      industries: []
+      update_cadence: daily
+      auth_required: false
+      cost_per_request_usd: 0
+      reliability: 1.0
+      description: "Federal Register presidential documents (1-3 day lag from signing)"
+
+  # Disabled by default — uncomment + provide creds to enable.
+  # - name: x-realdonaldtrump
+  #   factory: trumptrade.signals.x_api:XAPISource
+  #   args:
+  #     username: realDonaldTrump
+  #   metadata:
+  #     domain: us_policy
+  #     markets: [us_equities, prediction_markets, crypto]
+  #     industries: []
+  #     update_cadence: real_time
+  #     auth_required: true
+  #     cost_per_request_usd: 0.001
+  #     reliability: 0.95
+  #     description: "X (Twitter) API filtered stream of @realDonaldTrump"
+
+  # - name: truth-social-realdonaldtrump
+  #   factory: trumptrade.signals.truth_social:TruthSocialSource
+  #   args:
+  #     username: realDonaldTrump
+  #   metadata:
+  #     domain: us_policy
+  #     markets: [us_equities, prediction_markets, crypto]
+  #     industries: []
+  #     update_cadence: real_time
+  #     auth_required: false
+  #     cost_per_request_usd: 0
+  #     reliability: 0.5
+  #     description: "Truth Social via truthbrush (unofficial, ToS risk)"
