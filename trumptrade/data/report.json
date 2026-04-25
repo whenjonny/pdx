@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-25T06:07:39.726544+00:00",
+  "generated_at": "2026-04-25T06:17:06.875021+00:00",
   "window_start": "2026-04-21T14:03:00+00:00",
   "window_end": "2026-04-24T11:00:00+00:00",
   "signals": {
@@ -9,62 +9,67 @@
     }
   },
   "decisions": {
-    "total": 408,
+    "total": 464,
     "by_agent": {
       "policy": 60,
-      "arb": 304,
-      "exit": 44
+      "arb": 354,
+      "exit": 50
     },
     "by_action": {
-      "open": 364,
-      "close": 44
+      "open": 414,
+      "close": 50
     }
   },
   "orders": {
-    "total": 274,
-    "fill_rate": 0.34306569343065696,
+    "total": 303,
+    "fill_rate": 0.33003300330033003,
     "by_status": {
-      "filled": 94,
-      "rejected": 180
+      "filled": 100,
+      "error": 52,
+      "rejected": 151
     },
     "rejected_top_reasons": [
       [
-        "max_open_positions; max_open_per_venue",
-        178
+        "max_open_per_venue",
+        99
       ],
       [
-        "max_open_per_venue",
-        2
+        "max_open_positions",
+        27
+      ],
+      [
+        "max_open_positions; max_open_per_venue",
+        25
       ]
     ]
   },
   "positions": {
-    "open": 6,
-    "closed": 44,
-    "winning": 36,
-    "losing": 8,
-    "win_rate": 0.8181818181818182,
-    "realized_pnl": 477.68999999999994,
-    "unrealized_pnl": -216.23,
-    "avg_win": 15.26527777777778,
-    "avg_loss": -8.9825,
-    "largest_win": 31.13,
-    "largest_loss": -10.92,
+    "open": 0,
+    "closed": 50,
+    "winning": 24,
+    "losing": 26,
+    "win_rate": 0.48,
+    "realized_pnl": 136.86000000000018,
+    "unrealized_pnl": 0,
+    "avg_win": 19.811666666666667,
+    "avg_loss": -13.023846153846156,
+    "largest_win": 34.38,
+    "largest_loss": -19.83,
     "by_exit_reason": {
-      "take_profit": 5,
-      "stop_loss": 9,
-      "arb_convergence": 30
+      "take_profit": 7,
+      "stop_loss": 27,
+      "arb_convergence": 16
     },
     "by_venue": {
       "polymarket": {
         "positions": 25,
-        "realized": 351.88,
-        "open_notional": 140.41
+        "realized": 473.70000000000005,
+        "open_notional": 0.0
       },
-      "kalshi": {
+      "predict.fun": {
         "positions": 25,
-        "realized": 125.81000000000002,
-        "open_notional": 99.82
+        "realized": -336.84000000000003,
+        "open_notional": 0.0
       }
     }
   }

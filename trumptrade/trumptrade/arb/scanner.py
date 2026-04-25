@@ -37,42 +37,60 @@ class ScanReport:
 
 
 class ArbScanner:
+    """Scans for cross-venue arbitrage. Generic: supply any two
+    `PredictionMarketClient`s (Polymarket / Kalshi / Predict.fun / ...).
+    Field names `polymarket` / `kalshi` are kept as backward-compatible
+    aliases."""
+
     def __init__(
         self,
-        polymarket: PredictionMarketClient,
-        kalshi: PredictionMarketClient,
+        venue_a: PredictionMarketClient | None = None,
+        venue_b: PredictionMarketClient | None = None,
         use_llm_matcher: bool = False,
         fee_per_dollar: float = 0.0,
         min_edge: float = 0.005,
         match_min_similarity: float = 0.35,
+        polymarket: PredictionMarketClient | None = None,    # bw-compat
+        kalshi: PredictionMarketClient | None = None,        # bw-compat
     ):
-        self.polymarket = polymarket
-        self.kalshi = kalshi
+        self.venue_a = venue_a or polymarket
+        self.venue_b = venue_b or kalshi
+        if self.venue_a is None or self.venue_b is None:
+            raise ValueError("ArbScanner requires two venue clients (venue_a, venue_b).")
         self.use_llm_matcher = use_llm_matcher
         self.fee_per_dollar = fee_per_dollar
         self.min_edge = min_edge
         self.match_min_similarity = match_min_similarity
 
+    # backwards-compat properties for older code that referenced .polymarket / .kalshi
+    @property
+    def polymarket(self):
+        return self.venue_a
+
+    @property
+    def kalshi(self):
+        return self.venue_b
+
     def scan(self, query: str, per_venue_limit: int = 25) -> ScanReport:
         report = ScanReport(query=query)
-        poly_refs = self.polymarket.search_markets(query, limit=per_venue_limit)
-        kalshi_refs = self.kalshi.search_markets(query, limit=per_venue_limit)
-        if not poly_refs or not kalshi_refs:
+        a_refs = self.venue_a.search_markets(query, limit=per_venue_limit)
+        b_refs = self.venue_b.search_markets(query, limit=per_venue_limit)
+        if not a_refs or not b_refs:
             return report
 
         if self.use_llm_matcher:
-            matches = match_llm(poly_refs, kalshi_refs, min_similarity=0.7)
+            matches = match_llm(a_refs, b_refs, min_similarity=0.7)
         else:
-            matches = match_rules(poly_refs, kalshi_refs, min_similarity=self.match_min_similarity)
+            matches = match_rules(a_refs, b_refs, min_similarity=self.match_min_similarity)
 
         report.candidates = matches
 
         for m in matches:
-            poly_q = self.polymarket.get_quote(m.polymarket.market_id)
-            kal_q = self.kalshi.get_quote(m.kalshi.market_id)
-            if poly_q is None or kal_q is None:
+            a_q = self.venue_a.get_quote(m.polymarket.market_id)
+            b_q = self.venue_b.get_quote(m.kalshi.market_id)
+            if a_q is None or b_q is None:
                 continue
-            opp = detect(m, poly_q, kal_q,
+            opp = detect(m, a_q, b_q,
                          fee_per_dollar=self.fee_per_dollar,
                          min_edge=self.min_edge)
             if opp:

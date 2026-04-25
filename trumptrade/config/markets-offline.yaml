@@ -1,6 +1,6 @@
 # Offline-only venue manifest for demo / sandbox runs. Two synthetic
-# venues so the arb agent has cheap-vs-rich pairs to play with without
-# network access.
+# venues (Polymarket + Predict.fun) with different drift so the arb agent
+# has cheap-vs-rich pairs to play with without network access.
 
 venues:
 
@@ -27,25 +27,25 @@ venues:
       supports_websocket: true
       description: "OFFLINE MOCK Polymarket"
 
-  - name: kalshi
+  - name: predict.fun
     factory: trumptrade.markets:MockMarketClient
     args:
-      venue_name: kalshi
+      venue_name: predict.fun
       base_yes_price: 0.51
       price_drift_per_call: -0.015
       random_walk_amplitude: 0.04
     metadata:
-      venue_class: regulated_us
-      base_currency: USD
-      chain: null
-      auth_required_for_read: false
+      venue_class: onchain_evm
+      base_currency: BNB
+      chain: bnb
+      auth_required_for_read: true
       auth_required_for_trade: true
-      fee_estimate_per_dollar: 0.07
+      fee_estimate_per_dollar: 0.005
       update_cadence: real_time
-      reliability: 1.0
+      reliability: 0.85
       topics: [tariff_china, energy_oil_gas, crypto_friendly, defense_spending,
                bank_deregulation, pharma_price_pressure, immigration_border,
                big_tech_antitrust, clean_energy_rollback]
       supports_limit_orders: true
-      supports_websocket: true
-      description: "OFFLINE MOCK Kalshi"
+      supports_websocket: false
+      description: "OFFLINE MOCK Predict.fun (BNB Mainnet stand-in)"

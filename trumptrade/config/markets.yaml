@@ -1,5 +1,4 @@
-# Prediction-market venue manifest. Editable at runtime — restart any
-# command that uses VenueRegistry.from_yaml() to pick up changes.
+# Production prediction-market venue manifest.
 #
 # Required metadata fields:
 #   venue_class            : regulated_us | onchain_evm | onchain_solana |
@@ -55,6 +54,9 @@ venues:
       supports_websocket: false
       description: "Predict.fun on BNB (mainnet 240 req/min, testnet free)"
 
+  # Kept for read-only arb scanning even where the user can't open an
+  # account. Trade routing skips Kalshi automatically when the second-pref
+  # list runs (see cli.paper_run / trade_loop).
   - name: kalshi
     factory: trumptrade.markets:KalshiClient
     args: {}
@@ -64,7 +66,7 @@ venues:
       chain: null
       auth_required_for_read: false
       auth_required_for_trade: true
-      fee_estimate_per_dollar: 0.07     # Kalshi takes maker/taker fees
+      fee_estimate_per_dollar: 0.07
       update_cadence: real_time
       reliability: 1.00
       topics: [tariff_china, energy_oil_gas, crypto_friendly, defense_spending,
@@ -72,64 +74,4 @@ venues:
                big_tech_antitrust, clean_energy_rollback, macro]
       supports_limit_orders: true
       supports_websocket: true
-      description: "Kalshi — CFTC-regulated US event exchange"
-
-  # ------------------------------------------------------------------
-  # Optional pmxt-backed venues. Uncomment + `pip install pmxt` (Node.js
-  # required) to enable additional long-tail venues without writing custom
-  # clients.
-  # ------------------------------------------------------------------
-
-  # - name: limitless
-  #   factory: trumptrade.markets:PMXTClient
-  #   args:
-  #     exchange: limitless
-  #   metadata:
-  #     venue_class: onchain_evm
-  #     base_currency: USDC
-  #     chain: base
-  #     auth_required_for_read: false
-  #     auth_required_for_trade: true
-  #     fee_estimate_per_dollar: 0.005
-  #     update_cadence: real_time
-  #     reliability: 0.85
-  #     topics: [crypto_friendly, macro]
-  #     supports_limit_orders: true
-  #     supports_websocket: false
-  #     description: "Limitless on Base L2 via pmxt"
-
-  # - name: myriad
-  #   factory: trumptrade.markets:PMXTClient
-  #   args:
-  #     exchange: myriad
-  #   metadata:
-  #     venue_class: onchain_evm
-  #     base_currency: USDC
-  #     chain: ethereum
-  #     auth_required_for_read: false
-  #     auth_required_for_trade: true
-  #     fee_estimate_per_dollar: 0.005
-  #     update_cadence: real_time
-  #     reliability: 0.80
-  #     topics: []
-  #     supports_limit_orders: true
-  #     supports_websocket: false
-  #     description: "Myriad markets via pmxt"
-
-  # - name: hyperliquid-hip4    # waiting for mainnet (testnet only as of Apr 2026)
-  #   factory: trumptrade.markets:PMXTClient
-  #   args:
-  #     exchange: hyperliquid
-  #   metadata:
-  #     venue_class: onchain_other
-  #     base_currency: USDH
-  #     chain: hyperliquid
-  #     auth_required_for_read: false
-  #     auth_required_for_trade: true
-  #     fee_estimate_per_dollar: 0.0002
-  #     update_cadence: real_time
-  #     reliability: 0.50            # testnet only
-  #     topics: [crypto_friendly, macro]
-  #     supports_limit_orders: true
-  #     supports_websocket: true
-  #     description: "Hyperliquid HIP-4 outcome contracts (TESTNET — DO NOT trade real funds)"
+      description: "Kalshi — CFTC-regulated US event exchange (read-only by default)"

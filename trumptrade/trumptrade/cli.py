@@ -224,10 +224,14 @@ def trade_loop(sources_config: str, markets_config: str, risk_config: str,
     agents = [
         PolicyAgent(classify_fn=cls_fn, default_size_contracts=100, confidence_floor=0.55),
     ]
+    # Generic arb agent: pair Polymarket with whichever second venue the
+    # registry has (predict.fun preferred over kalshi for jurisdictions where
+    # Kalshi accounts can't be opened).
     poly = venue_clients.get("polymarket")
-    kalshi = venue_clients.get("kalshi")
-    if poly is not None and kalshi is not None:
-        agents.append(ArbAgent(polymarket_client=poly, kalshi_client=kalshi,
+    second_pref = ["predict.fun", "kalshi", "limitless", "myriad"]
+    second_client = next((venue_clients[v] for v in second_pref if v in venue_clients and v != "polymarket"), None)
+    if poly is not None and second_client is not None:
+        agents.append(ArbAgent(venue_a_client=poly, venue_b_client=second_client,
                                default_size_contracts=100, min_edge=0.005))
 
     ctx = AgentContext(playbook=playbook, position_store=pstore,
@@ -346,9 +350,11 @@ def paper_run(interval: int, ticks: int, sources_config: str, markets_config: st
     cls_fn = fake_classify if (use_fake_classifier and not no_fake) else real_classify
 
     agents = [PolicyAgent(classify_fn=cls_fn, default_size_contracts=100, confidence_floor=0.55)]
-    poly = venue_clients.get("polymarket"); kalshi = venue_clients.get("kalshi")
-    if poly is not None and kalshi is not None:
-        agents.append(ArbAgent(polymarket_client=poly, kalshi_client=kalshi,
+    poly = venue_clients.get("polymarket")
+    second_pref = ["predict.fun", "kalshi", "limitless", "myriad"]
+    second_client = next((venue_clients[v] for v in second_pref if v in venue_clients and v != "polymarket"), None)
+    if poly is not None and second_client is not None:
+        agents.append(ArbAgent(venue_a_client=poly, venue_b_client=second_client,
                                default_size_contracts=100))
 
     ctx = AgentContext(playbook=load_playbook(), position_store=pstore,

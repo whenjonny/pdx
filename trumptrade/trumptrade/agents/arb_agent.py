@@ -12,21 +12,31 @@ from trumptrade.types import Signal
 
 
 class ArbAgent(Agent):
+    """Generic two-venue arbitrage agent. Pass any two
+    PredictionMarketClients (e.g. Polymarket + Predict.fun, or Polymarket
+    + Kalshi). Older keyword args `polymarket_client` / `kalshi_client`
+    still work for backward compatibility."""
     name = "arb"
 
     def __init__(
         self,
-        polymarket_client,
-        kalshi_client,
+        venue_a_client=None,
+        venue_b_client=None,
         scanner_factory=None,
         default_size_contracts: int = 100,
         min_edge: float = 0.005,
         match_min_similarity: float = 0.35,
+        polymarket_client=None,    # bw-compat
+        kalshi_client=None,        # bw-compat
     ):
         from trumptrade.arb import ArbScanner
+        a = venue_a_client or polymarket_client
+        b = venue_b_client or kalshi_client
+        if a is None or b is None:
+            raise ValueError("ArbAgent requires two venue clients.")
         self.scanner = (scanner_factory or ArbScanner)(
-            polymarket=polymarket_client,
-            kalshi=kalshi_client,
+            venue_a=a,
+            venue_b=b,
             min_edge=min_edge,
             match_min_similarity=match_min_similarity,
         )
