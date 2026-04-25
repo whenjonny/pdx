@@ -31,9 +31,38 @@ Nothing else is required for the offline demo flow below.
 cd /home/user/pdx/trumptrade
 python -m pytest -v
 ```
-Expected: `53 passed`.
+Expected: `91 passed`.
 
 ---
+
+## 1.5. Full paper-run end-to-end (no API key, no network)
+
+```bash
+rm -f data/{signals,decisions,orders,positions,close_orders}.jsonl
+
+# Run 6 ticks of trade + monitor pipeline using offline mock venues
+python -m trumptrade.cli paper-run --ticks 6 --interval 1 \
+    --sources-config config/sources-offline.yaml \
+    --markets-config config/markets-offline.yaml
+
+# Inspect what happened
+python -m trumptrade.cli signals-tail --n 5
+python -m trumptrade.cli decisions-tail --n 10
+python -m trumptrade.cli orders-tail --n 10
+python -m trumptrade.cli positions --show-closed
+
+# Generate the final result summary
+python -m trumptrade.cli report --out data/report.json
+
+# Visual dashboard (8 tabs incl. report + win rate)
+python -m trumptrade.cli dashboard
+```
+
+The pipeline writes 4 append-only jsonl logs:
+- `data/signals.jsonl` — every signal observed
+- `data/decisions.jsonl` — every TradeDecision an agent emitted
+- `data/orders.jsonl` — every order, with status transitions
+- `data/positions.jsonl` — every position open/close/mark-update
 
 ## 2. Demo end-to-end (no API key)
 

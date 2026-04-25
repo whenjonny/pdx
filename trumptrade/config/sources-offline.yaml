@@ -1,0 +1,16 @@
+# Offline-only source manifest for demo / sandbox runs.
+
+sources:
+  - name: mock-sample-posts
+    factory: trumptrade.signals.mock:MockFileSource
+    args:
+      path: data/sample_posts/posts.json
+    metadata:
+      domain: us_policy
+      markets: [us_equities, prediction_markets]
+      industries: [tariff, energy, crypto, defense, banking, pharma, immigration, big_tech, clean_energy]
+      update_cadence: irregular
+      auth_required: false
+      cost_per_request_usd: 0
+      reliability: 1.0
+      description: "Local JSON of sample Trump posts (offline)"

@@ -1,0 +1,71 @@
+{
+  "generated_at": "2026-04-25T06:02:34.702747+00:00",
+  "window_start": "2026-04-21T14:03:00+00:00",
+  "window_end": "2026-04-24T11:00:00+00:00",
+  "signals": {
+    "total": 20,
+    "by_source": {
+      "mock-sample-posts": 20
+    }
+  },
+  "decisions": {
+    "total": 406,
+    "by_agent": {
+      "policy": 60,
+      "arb": 304,
+      "exit": 42
+    },
+    "by_action": {
+      "open": 364,
+      "close": 42
+    }
+  },
+  "orders": {
+    "total": 272,
+    "fill_rate": 0.3382352941176471,
+    "by_status": {
+      "filled": 92,
+      "rejected": 180
+    },
+    "rejected_top_reasons": [
+      [
+        "max_open_positions; max_open_per_venue",
+        178
+      ],
+      [
+        "max_open_per_venue",
+        2
+      ]
+    ]
+  },
+  "positions": {
+    "open": 8,
+    "closed": 42,
+    "winning": 34,
+    "losing": 8,
+    "win_rate": 0.8095238095238095,
+    "realized_pnl": 432.61,
+    "unrealized_pnl": -180.00379999999996,
+    "avg_win": 14.83735294117647,
+    "avg_loss": -8.9825,
+    "largest_win": 31.13,
+    "largest_loss": -10.92,
+    "by_exit_reason": {
+      "stop_loss": 9,
+      "arb_convergence": 30,
+      "take_profit": 3
+    },
+    "by_venue": {
+      "polymarket": {
+        "positions": 25,
+        "realized": 306.8,
+        "open_notional": 186.82840000000002
+      },
+      "kalshi": {
+        "positions": 25,
+        "realized": 125.81000000000002,
+        "open_notional": 99.82
+      }
+    }
+  }
+}

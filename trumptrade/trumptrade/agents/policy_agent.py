@@ -72,6 +72,14 @@ class PolicyAgent(Agent):
             except Exception:
                 continue
             for ref in refs:
+                # Default stop/take_profit anchored to a hypothetical entry of
+                # ~0.45 on YES (the quote layer will refine when filled).
+                # For BUY_YES: stop at -10pp from anticipated entry; take at +20pp.
+                # For BUY_NO: mirror.
+                anchor = 0.45 if side == "BUY_YES" else 0.55
+                stop = max(0.05, anchor - 0.10)
+                take = min(0.95, anchor + 0.20)
+
                 decisions.append(TradeDecision(
                     action="open",
                     venue=vmeta.name,
@@ -88,8 +96,8 @@ class PolicyAgent(Agent):
                     source_signal_id=signal.id,
                     category=c.category,
                     event_id=ref.market_id,
-                    suggested_stop_loss=None,        # policy bets have no fixed stop yet
-                    suggested_take_profit=None,
+                    suggested_stop_loss=stop,
+                    suggested_take_profit=take,
                     suggested_max_hold_until=ref.closes_at,
                 ))
         return decisions

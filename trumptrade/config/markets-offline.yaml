@@ -1,0 +1,51 @@
+# Offline-only venue manifest for demo / sandbox runs. Two synthetic
+# venues so the arb agent has cheap-vs-rich pairs to play with without
+# network access.
+
+venues:
+
+  - name: polymarket
+    factory: trumptrade.markets:MockMarketClient
+    args:
+      venue_name: polymarket
+      base_yes_price: 0.42
+      price_drift_per_call: 0.02
+      random_walk_amplitude: 0.04
+    metadata:
+      venue_class: onchain_evm
+      base_currency: USDC
+      chain: polygon
+      auth_required_for_read: false
+      auth_required_for_trade: true
+      fee_estimate_per_dollar: 0.005
+      update_cadence: real_time
+      reliability: 1.0
+      topics: [tariff_china, energy_oil_gas, crypto_friendly, defense_spending,
+               bank_deregulation, pharma_price_pressure, immigration_border,
+               big_tech_antitrust, clean_energy_rollback]
+      supports_limit_orders: true
+      supports_websocket: true
+      description: "OFFLINE MOCK Polymarket"
+
+  - name: kalshi
+    factory: trumptrade.markets:MockMarketClient
+    args:
+      venue_name: kalshi
+      base_yes_price: 0.51
+      price_drift_per_call: -0.015
+      random_walk_amplitude: 0.04
+    metadata:
+      venue_class: regulated_us
+      base_currency: USD
+      chain: null
+      auth_required_for_read: false
+      auth_required_for_trade: true
+      fee_estimate_per_dollar: 0.07
+      update_cadence: real_time
+      reliability: 1.0
+      topics: [tariff_china, energy_oil_gas, crypto_friendly, defense_spending,
+               bank_deregulation, pharma_price_pressure, immigration_border,
+               big_tech_antitrust, clean_energy_rollback]
+      supports_limit_orders: true
+      supports_websocket: true
+      description: "OFFLINE MOCK Kalshi"

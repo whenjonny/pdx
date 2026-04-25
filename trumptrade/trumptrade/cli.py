@@ -116,6 +116,307 @@ def arb_scan(query: str, limit: int, min_edge: float, fee: float, use_llm: bool)
     click.echo(report.summary())
 
 
+@cli.command("report")
+@click.option("--out", type=click.Path(), default=None,
+              help="Write JSON report alongside the human-readable text.")
+def report_cmd(out: str | None) -> None:
+    """Generate a result-summary report from data/*.jsonl logs."""
+    from trumptrade.reports import build_summary
+    import json
+    summary = build_summary(data_dir())
+    click.echo(summary.render_text())
+    if out:
+        Path(out).write_text(json.dumps({
+            "generated_at": summary.generated_at.isoformat(),
+            "window_start": summary.window_start.isoformat() if summary.window_start else None,
+            "window_end": summary.window_end.isoformat() if summary.window_end else None,
+            "signals": {
+                "total": summary.n_signals, "by_source": summary.signals_by_source,
+            },
+            "decisions": {
+                "total": summary.n_decisions,
+                "by_agent": summary.decisions_by_agent,
+                "by_action": summary.decisions_by_action,
+            },
+            "orders": {
+                "total": summary.n_orders,
+                "fill_rate": summary.fill_rate,
+                "by_status": summary.orders_by_status,
+                "rejected_top_reasons": summary.rejected_top_reasons,
+            },
+            "positions": {
+                "open": summary.n_open, "closed": summary.n_closed,
+                "winning": summary.n_winning, "losing": summary.n_losing,
+                "win_rate": summary.win_rate,
+                "realized_pnl": summary.realized_pnl,
+                "unrealized_pnl": summary.unrealized_pnl,
+                "avg_win": summary.avg_win, "avg_loss": summary.avg_loss,
+                "largest_win": summary.largest_win, "largest_loss": summary.largest_loss,
+                "by_exit_reason": summary.by_exit_reason,
+                "by_venue": summary.by_venue,
+            },
+        }, indent=2, default=str))
+        click.echo(f"\n(json written to {out})")
+
+
+@cli.command("trade-loop")
+@click.option("--sources-config", type=click.Path(exists=True), default="config/sources.yaml")
+@click.option("--markets-config", type=click.Path(exists=True), default="config/markets.yaml")
+@click.option("--risk-config", type=click.Path(exists=True), default="config/risk_limits.yaml")
+@click.option("--mode", type=click.Choice(["paper", "alert", "live"]), default="paper",
+              help="paper = SimulatedExecutor; alert = log only, no orders; live = real broker.")
+@click.option("--use-fake-classifier", is_flag=True, default=True,
+              help="Use offline keyword classifier (no ANTHROPIC_API_KEY needed). Default ON.")
+@click.option("--no-fake", is_flag=True, help="Force real Claude classifier.")
+@click.option("--interval", type=int, default=30)
+@click.option("--once", is_flag=True, help="One sweep then exit.")
+def trade_loop(sources_config: str, markets_config: str, risk_config: str,
+               mode: str, use_fake_classifier: bool, no_fake: bool,
+               interval: int, once: bool) -> None:
+    """End-to-end paper trade loop:
+
+    Sources -> Agents -> Router -> Orders -> Positions
+
+    Logs every signal, decision, order, position to data/*.jsonl.
+    """
+    from trumptrade.signals import SourceRegistry
+    from trumptrade.markets import VenueRegistry
+    from trumptrade.monitor import PositionStore
+    from trumptrade.orders import OrderStore, SimulatedExecutor, OrderRouter
+    from trumptrade.risk import load_risk_limits, RiskChecker
+    from trumptrade.agents import PolicyAgent, ArbAgent, AgentContext
+    from trumptrade.classifier import classify as real_classify, fake_classify
+    from trumptrade.pipelines import TradePipeline, SignalLog
+    from trumptrade.decisions import DecisionStore
+
+    sources = SourceRegistry.from_yaml(Path(sources_config))
+    venues = VenueRegistry.from_yaml(Path(markets_config))
+    venue_clients = {meta.name: client for client, meta in venues.all()}
+
+    pstore = PositionStore(data_dir() / "positions.jsonl")
+    ostore = OrderStore(data_dir() / "orders.jsonl")
+    sig_log = SignalLog(data_dir() / "signals.jsonl")
+    dec_store = DecisionStore(data_dir() / "decisions.jsonl")
+
+    limits = load_risk_limits(risk_config)
+    risk = RiskChecker(limits, pstore)
+
+    if mode == "alert":
+        # alert mode = build a no-op executor map; everything will reject at routing
+        executors = {}
+    else:
+        # Both paper and live use SimulatedExecutor for now (live wiring is per-venue)
+        def quote_lookup(venue, market_id):
+            client = venue_clients.get(venue)
+            return client.get_quote(market_id) if client else None
+        executors = {
+            name: SimulatedExecutor(name, quote_fn=quote_lookup)
+            for name in venue_clients.keys()
+        }
+        if mode == "live":
+            click.echo("WARNING: --mode live falls back to SimulatedExecutor for unwired venues.")
+
+    router = OrderRouter(ostore, pstore, executors, risk_checker=risk)
+
+    cls_fn = fake_classify if (use_fake_classifier and not no_fake) else real_classify
+    playbook = load_playbook()
+
+    agents = [
+        PolicyAgent(classify_fn=cls_fn, default_size_contracts=100, confidence_floor=0.55),
+    ]
+    poly = venue_clients.get("polymarket")
+    kalshi = venue_clients.get("kalshi")
+    if poly is not None and kalshi is not None:
+        agents.append(ArbAgent(polymarket_client=poly, kalshi_client=kalshi,
+                               default_size_contracts=100, min_edge=0.005))
+
+    ctx = AgentContext(playbook=playbook, position_store=pstore,
+                       venue_registry=venues, risk_checker=risk)
+
+    pipe = TradePipeline(
+        source_registry=sources,
+        agents=agents,
+        router=router,
+        agent_ctx=ctx,
+        signal_log=sig_log,
+        decision_store=dec_store,
+    )
+
+    if once:
+        result = pipe.run_once()
+        click.echo(result.summary())
+    else:
+        pipe.run_forever(interval_sec=interval)
+
+
+@cli.command("monitor-loop")
+@click.option("--markets-config", type=click.Path(exists=True), default="config/markets.yaml")
+@click.option("--mode", type=click.Choice(["paper", "alert", "live"]), default="paper")
+@click.option("--interval", type=int, default=30)
+@click.option("--once", is_flag=True)
+def monitor_loop_cmd(markets_config: str, mode: str, interval: int, once: bool) -> None:
+    """Continuous position monitor using the new ExitAgent + OrderRouter path."""
+    from trumptrade.markets import VenueRegistry
+    from trumptrade.monitor import PositionStore
+    from trumptrade.orders import OrderStore, SimulatedExecutor, OrderRouter
+    from trumptrade.agents import ExitAgent, AgentContext
+    from trumptrade.pipelines import MonitorPipeline
+    from trumptrade.decisions import DecisionStore
+
+    venues = VenueRegistry.from_yaml(Path(markets_config))
+    venue_clients = {meta.name: client for client, meta in venues.all()}
+
+    pstore = PositionStore(data_dir() / "positions.jsonl")
+    ostore = OrderStore(data_dir() / "orders.jsonl")
+    dec_store = DecisionStore(data_dir() / "decisions.jsonl")
+
+    def quote_lookup(venue, market_id):
+        client = venue_clients.get(venue)
+        return client.get_quote(market_id) if client else None
+
+    if mode == "alert":
+        executors = {}
+    else:
+        executors = {
+            name: SimulatedExecutor(name, quote_fn=quote_lookup)
+            for name in venue_clients.keys()
+        }
+
+    router = OrderRouter(ostore, pstore, executors, risk_checker=None)
+    exit_agent = ExitAgent(quote_fn=quote_lookup)
+    ctx = AgentContext(playbook=load_playbook(), position_store=pstore,
+                       venue_registry=venues)
+    pipe = MonitorPipeline(exit_agent, router, ctx, decision_store=dec_store)
+
+    if once:
+        click.echo(pipe.run_once().summary())
+    else:
+        pipe.run_forever(interval_sec=interval)
+
+
+@cli.command("paper-run")
+@click.option("--interval", type=int, default=30,
+              help="Trade-loop interval (monitor runs every tick too).")
+@click.option("--ticks", type=int, default=0, help="Stop after N ticks (0 = forever).")
+@click.option("--sources-config", type=click.Path(exists=True), default="config/sources.yaml")
+@click.option("--markets-config", type=click.Path(exists=True), default="config/markets.yaml")
+@click.option("--risk-config", type=click.Path(exists=True), default="config/risk_limits.yaml")
+@click.option("--use-fake-classifier", is_flag=True, default=True)
+@click.option("--no-fake", is_flag=True)
+def paper_run(interval: int, ticks: int, sources_config: str, markets_config: str,
+              risk_config: str, use_fake_classifier: bool, no_fake: bool) -> None:
+    """One-process paper run: trade loop + monitor loop interleaved.
+
+    On each tick:
+      1) trade pipeline polls sources, routes new opens
+      2) monitor pipeline evaluates all open positions, routes closes
+    Everything logged to data/{signals,decisions,orders,positions}.jsonl.
+    """
+    import time
+    from trumptrade.signals import SourceRegistry
+    from trumptrade.markets import VenueRegistry
+    from trumptrade.monitor import PositionStore
+    from trumptrade.orders import OrderStore, SimulatedExecutor, OrderRouter
+    from trumptrade.risk import load_risk_limits, RiskChecker
+    from trumptrade.agents import PolicyAgent, ArbAgent, ExitAgent, AgentContext
+    from trumptrade.classifier import classify as real_classify, fake_classify
+    from trumptrade.pipelines import TradePipeline, MonitorPipeline, SignalLog
+    from trumptrade.decisions import DecisionStore
+
+    sources = SourceRegistry.from_yaml(Path(sources_config))
+    venues = VenueRegistry.from_yaml(Path(markets_config))
+    venue_clients = {meta.name: client for client, meta in venues.all()}
+
+    pstore = PositionStore(data_dir() / "positions.jsonl")
+    ostore = OrderStore(data_dir() / "orders.jsonl")
+    sig_log = SignalLog(data_dir() / "signals.jsonl")
+    dec_store = DecisionStore(data_dir() / "decisions.jsonl")
+    limits = load_risk_limits(risk_config)
+    risk = RiskChecker(limits, pstore)
+
+    def quote_lookup(venue, market_id):
+        client = venue_clients.get(venue)
+        return client.get_quote(market_id) if client else None
+
+    executors = {
+        name: SimulatedExecutor(name, quote_fn=quote_lookup)
+        for name in venue_clients.keys()
+    }
+    router = OrderRouter(ostore, pstore, executors, risk_checker=risk)
+    cls_fn = fake_classify if (use_fake_classifier and not no_fake) else real_classify
+
+    agents = [PolicyAgent(classify_fn=cls_fn, default_size_contracts=100, confidence_floor=0.55)]
+    poly = venue_clients.get("polymarket"); kalshi = venue_clients.get("kalshi")
+    if poly is not None and kalshi is not None:
+        agents.append(ArbAgent(polymarket_client=poly, kalshi_client=kalshi,
+                               default_size_contracts=100))
+
+    ctx = AgentContext(playbook=load_playbook(), position_store=pstore,
+                       venue_registry=venues, risk_checker=risk)
+    trade_pipe = TradePipeline(sources, agents, router, ctx, sig_log, dec_store)
+    mon_pipe = MonitorPipeline(ExitAgent(quote_fn=quote_lookup), router, ctx, dec_store)
+
+    n = 0
+    try:
+        while True:
+            t = trade_pipe.run_once()
+            click.echo(t.summary())
+            m = mon_pipe.run_once()
+            click.echo(m.summary())
+            n += 1
+            if ticks and n >= ticks:
+                break
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        click.echo("paper-run stopped by user")
+
+
+@cli.command("signals-tail")
+@click.option("--n", type=int, default=20)
+def signals_tail(n: int) -> None:
+    from trumptrade.pipelines import SignalLog
+    log = SignalLog(data_dir() / "signals.jsonl")
+    rows = log.tail(n)
+    if not rows:
+        click.echo("(no signals logged)")
+        return
+    for r in rows:
+        s = r.get("signal", {})
+        click.echo(f"  {s.get('timestamp', '?')[:19]}  src={r.get('source', '?'):20s}  "
+                   f"{s.get('id', '?'):24s}  {(s.get('text') or '')[:80]}")
+
+
+@cli.command("decisions-tail")
+@click.option("--n", type=int, default=20)
+def decisions_tail(n: int) -> None:
+    from trumptrade.decisions import DecisionStore
+    store = DecisionStore(data_dir() / "decisions.jsonl")
+    decisions = store.all()[-n:]
+    if not decisions:
+        click.echo("(no decisions logged)")
+        return
+    for d in decisions:
+        click.echo(f"  {d.created_at.isoformat()[:19]}  {d.agent_name:8s}  {d.action:10s}  "
+                   f"{d.venue:11s} {d.side:8s}  size={d.size_contracts:>4d}  conf={d.confidence:.2f}  "
+                   f"{d.market_title[:50]}")
+
+
+@cli.command("orders-tail")
+@click.option("--n", type=int, default=20)
+def orders_tail(n: int) -> None:
+    from trumptrade.orders import OrderStore
+    store = OrderStore(data_dir() / "orders.jsonl")
+    orders = store.all()[-n:]
+    if not orders:
+        click.echo("(no orders logged)")
+        return
+    for o in orders:
+        avg = o.avg_fill_price or o.limit_price or 0.0
+        click.echo(f"  {o.created_at.isoformat()[:19]}  {o.venue:11s} {o.side:8s} "
+                   f"qty={o.qty_contracts:>4d} px={avg:.3f}  status={o.status:14s} "
+                   f"{(o.market_title or '')[:40]}")
+
+
 @cli.command("sources-list")
 @click.option("--config", "config_path", type=click.Path(exists=True),
               default="config/sources.yaml")

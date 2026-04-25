@@ -57,12 +57,20 @@ class SourceRegistry:
         return [(s, m) for s, m in self._sources.values() if m.matches(domain, market, industry)]
 
     def poll_all(self) -> dict[str, list]:
-        """Poll every registered source. Returns {source_name: [Signal, ...]}."""
+        """Poll every registered source. Returns {source_name: [Signal, ...]}.
+
+        One source failing (network down, optional dep missing, ToS shift)
+        must not kill the whole sweep — log the error and continue with the
+        other sources.
+        """
+        import logging
+        log = logging.getLogger(__name__)
         out = {}
         for src, meta in self._sources.values():
             try:
                 out[meta.name] = src.poll()
-            except NotImplementedError:
+            except Exception as e:        # noqa: BLE001 — broad on purpose
+                log.warning("source %s poll failed: %s", meta.name, e)
                 out[meta.name] = []
         return out
 
